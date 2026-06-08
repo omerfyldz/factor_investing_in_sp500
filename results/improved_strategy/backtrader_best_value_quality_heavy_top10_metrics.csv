@@ -1,0 +1,2 @@
+name,n_months,avg_monthly_return,monthly_volatility,annualized_return_approx,annualized_volatility,annualized_sharpe,t_stat,p_value,cumulative_return,max_drawdown,best_month,worst_month,final_value,total_return
+backtrader_best_value_quality_heavy_top10,240,0.0067727756268162985,0.02023029139468631,0.08127330752179558,0.07007978509504026,1.159725410281652,5.186449705247216,4.569486667393648e-07,3.816929177260784,-0.12688193494669053,0.09372603977673077,-0.0547368524311056,4816929.177260789,3.816929177260789

@@ -1,0 +1,7 @@
+dataset,rows,tickers,min_date,max_date,missing_key_value
+prices,2292658,503,2006-06-05,2026-05-29,0
+daily_fundamentals,2295967,499,2006-06-05,2026-05-29,6517
+statements,3458978,499,2005-04-29,2026-05-29,2
+constituents,503,503,,,0
+sp500_index_yahoo,5030,1,2006-06-01,2026-05-29,0
+factor_panel,109492,503,2006-06-30,2026-05-31,9236

@@ -1,0 +1,16 @@
+strategy,weights,top_n,trend_col,regime_filter,stop_loss,take_profit,max_per_sector,volatility_penalty,assignment_scope,notes
+base_equal_top10,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",10,trend_z,False,,,,0.0,True,"Required assignment baseline: equal-weight ROE, P/E, momentum, and index-regression trend."
+equal_top5,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",5,trend_z,False,,,,0.0,True,"Concentration test: same score, fewer names."
+trend_momentum_heavy_top10,"{""roe"": 0.2, ""pe"": 0.2, ""momentum"": 0.3, ""trend"": 0.3}",10,trend_z,False,,,,0.0,True,Weight test: emphasize price-based signals.
+value_quality_heavy_top10,"{""roe"": 0.35, ""pe"": 0.35, ""momentum"": 0.15, ""trend"": 0.15}",10,trend_z,False,,,,0.0,True,Weight test: emphasize fundamentals.
+no_trend_top10,"{""roe"": 1, ""pe"": 1, ""momentum"": 1}",10,trend_z,False,,,,0.0,False,Ablation test: remove trend to see whether the trend factor helps.
+hzz_trend_composite_top10,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",10,hzz_trend_z,False,,,,0.0,False,Paper-inspired improvement: replace index-regression trend with cross-sectional HZZ trend.
+base_equal_top10_regime,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",10,trend_z,True,,,,0.0,True,Risk filter: trade only when S&P 500 is above its 10-month moving average.
+trend_heavy_top10_regime,"{""roe"": 0.2, ""pe"": 0.2, ""momentum"": 0.3, ""trend"": 0.3}",10,trend_z,True,,,,0.0,True,Combined price-signal overweight and market-regime filter.
+base_top10_stop10_take20,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",10,trend_z,False,0.1,0.2,,0.0,True,Risk management test: Backtrader stop-loss/take-profit improvement; vector curve is a monthly screening approximation.
+top5_regime_stop10_take20,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",5,trend_z,True,0.1,0.2,,0.0,True,"Combined concentration, regime, and Backtrader stop/take-profit improvement."
+hzz_sector_cap2_top10,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",10,hzz_trend_z,False,,,2.0,0.0,False,Risk-control improvement: HZZ score with max two holdings per GICS sector.
+hzz_vol_penalty_top10,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",10,hzz_trend_z,False,,,,0.25,False,Risk-control improvement: HZZ score penalized by 6-month realized volatility.
+hzz_sector_cap2_vol_penalty_top10,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",10,hzz_trend_z,False,,,2.0,0.25,False,"Combined improvement: HZZ trend, sector cap, and volatility-aware ranking."
+hzz_sector_cap2_top15,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1}",15,hzz_trend_z,False,,,3.0,0.0,False,Diversification test: HZZ score with 15 names and max three per sector.
+hzz_low_vol_factor_top10,"{""roe"": 1, ""pe"": 1, ""momentum"": 1, ""trend"": 1, ""low_volatility"": 0.5}",10,hzz_trend_z,False,,,,0.0,False,Risk-score test: add low-volatility as a half-weight risk overlay.

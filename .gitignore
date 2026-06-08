@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# Keep only the very large raw vendor CSVs out of normal Git unless Git LFS is configured.
+# Processed panels, results, figures, presentation outputs, and the frozen Yahoo index
+# are deliverables for the assignment and should remain visible.
+data/raw/*.csv
+!data/raw/fundamentals_field_definitions.csv
+!data/raw/sp500_constituents.csv
+!data/raw/sp500_index_yahoo.csv

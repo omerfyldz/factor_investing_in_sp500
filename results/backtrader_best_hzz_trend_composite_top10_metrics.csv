@@ -1,0 +1,2 @@
+name,n_months,avg_monthly_return,monthly_volatility,annualized_return_approx,annualized_volatility,annualized_sharpe,t_stat,p_value,cumulative_return,max_drawdown,best_month,worst_month,final_value,total_return
+backtrader_best_hzz_trend_composite_top10,240,0.007065307082063847,0.023766992218017022,0.08478368498476616,0.08233127612939921,1.0297870866414427,4.605347856163463,6.69589200179999e-06,4.0715038736355975,-0.12841841168701906,0.13823073394618368,-0.10749798291110946,5071503.873635607,4.071503873635606
