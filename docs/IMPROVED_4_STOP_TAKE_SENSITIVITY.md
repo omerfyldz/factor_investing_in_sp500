@@ -9,8 +9,8 @@ Improved 4 is a focused risk-exit parameter experiment. It does not replace the 
 - Training window used for selection: observations through `2020-12-31`.
 - Test-period metrics are reported after selection and are not used to pick the winner.
 - Selection score: training Sharpe, penalized for training drawdown and isolated parameter peaks.
-- Intrabar warning: monthly vector results use OHLC approximations; if stop and take-profit are both touched in a bar, stop-loss has priority.
-- Execution check: the selected candidate is run with daily Backtrader adjusted OHLC stop/take threshold checks and market exits.
+- Intrabar warning: monthly vector results use OHLC approximations; executable evidence comes from Backtrader.
+- Execution check: the selected candidate is run with daily Backtrader adjusted OHLC data, market entries/rebalances, and native `bt.Order.Stop` / `bt.Order.Limit` protective exits.
 
 ## Selected Candidate
 
@@ -20,9 +20,9 @@ Improved 4 is a focused risk-exit parameter experiment. It does not replace the 
 - Train max drawdown: `-7.36%`
 - Test Sharpe: `1.0221`
 - Test max drawdown: `-6.02%`
-- Backtrader final value: `$2,983,357`
-- Backtrader Sharpe: `1.0392`
-- Backtrader max drawdown: `-7.62%`
+- Backtrader final value: `$2,816,266`
+- Backtrader Sharpe: `0.9852`
+- Backtrader max drawdown: `-7.69%`
 
 ## Comparison To Improved 2 Original 10%/20%
 

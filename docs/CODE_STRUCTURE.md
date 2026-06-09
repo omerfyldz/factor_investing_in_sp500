@@ -5,7 +5,7 @@
 - `src/project_core.py`: shared data loading, factor construction, FMP analysis, staged strategy logic, Backtrader classes, robustness tests, reporting, and presentation generation.
 - `src/run_project.py`: full reproducible pipeline. Run this for final regeneration.
 - `src/run_base_strategy.py`: reruns only the pure base strategy from processed CSVs.
-- `src/run_improved_strategy.py`: reruns improved 1, improved 2, and improved 3 from processed CSVs; it also reads raw daily prices/index data for the improved 2 and improved 3 daily Backtrader stop/take checks.
+- `src/run_improved_strategy.py`: reruns improved 1, improved 2, and improved 3 from processed CSVs; it also reads raw daily prices/index data for the improved 2 and improved 3 daily Backtrader native stop/limit protective orders.
 - `src/run_improved_4_stop_take_sensitivity.py`: reruns only the improved 4 stop/take sensitivity experiment from processed factor data plus raw daily prices/index data.
 - `src/run_improved_5_regime_filter.py`: reruns only the improved 5 market-regime filter experiment from processed factor data plus raw daily prices/index data.
 - `src/compare_strategies.py`: rebuilds the staged base-versus-improved comparison table.

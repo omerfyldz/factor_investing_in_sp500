@@ -1,6 +1,6 @@
 # Strategy History And Improvement Log
 
-This file is the living history of the S&P 500 factor investing project. It records what we built, what we removed, and what we should revisit later. The executable project is now deliberately staged into four active strategies: base, improved 1, improved 2, and improved 3.
+This file is the living history of the S&P 500 factor investing project. It records what we built, what we removed, and what we should revisit later. The executable project is deliberately staged: the core ladder is base through improved 3, and the later focused experiments are improved 4 and improved 5.
 
 ## Project Rules We Must Preserve
 
@@ -92,9 +92,11 @@ Improved 2 builds directly on improved 1 and adds risk exits:
 - stop-loss: 10%;
 - take-profit: 20%;
 - vector results use a monthly open/high/low/close approximation with stop priority if stop and take-profit are both touched in the same month;
-- Backtrader results use daily adjusted OHLC bars, daily stop/take threshold checks, and market exits. If both thresholds are touched on the same daily bar, the stop-loss is given priority.
+- Backtrader results use daily adjusted OHLC bars, explicit market orders for entries/rebalances, and native `bt.Order.Stop` / `bt.Order.Limit` protective exits.
 
 Improved 2 vector Sharpe: `0.7310`.
+
+Order-model note: the Backtrader stop/take engine now uses native `bt.Order.Stop` and `bt.Order.Limit` protective orders. Rebalance exits cancel live protective orders before submitting market exits so stale stop/limit orders cannot create accidental shorts. Saved Backtrader metrics should be regenerated before final interpretation under this execution model.
 
 ### 4. Improved Strategy 3: Past-Only Dynamic Factor Weighting
 
@@ -152,7 +154,7 @@ The project is stronger after separating the literal base from sequential improv
 - Improved 1 is primarily a methodology improvement because it reduces look-ahead bias in the trend factor.
 - Improved 2 is a risk-management test on top of improved 1 and should be judged by both return and drawdown.
 - Improved 3 is a weighting-process test on top of improved 2 and should be judged against improved 2, not just against the base.
-- Vector curves are screening summaries; executable trading evidence comes from the saved Backtrader runs. Base and improved 1 use monthly market-order Backtrader; improved 2 and improved 3 use daily Backtrader risk exits.
+- Vector curves are screening summaries; executable trading evidence comes from the saved Backtrader runs. Base and improved 1 use monthly `bt.Order.Market` Backtrader orders; improved 2 and improved 3 use daily Backtrader market entries/rebalances plus native stop/limit protective exits.
 - The universe uses current S&P 500 constituents, so survivorship bias remains.
 - Transaction costs and slippage are ignored because the assignment requires commission `0`.
 - A production strategy would need historical index membership, costs, slippage, beta/sector neutrality, and a data-snooping-adjusted test such as White's Reality Check or Hansen's SPA.
@@ -194,10 +196,19 @@ Improved 5 was added after improved 4 as a focused market-regime filter test. It
 - No regime-window optimization was performed.
 - Vector Sharpe: `0.6525`.
 - Vector max drawdown: `-11.19%`.
-- Backtrader Sharpe: `0.8593`.
-- Backtrader max drawdown: `-11.57%`.
+- Backtrader Sharpe: `0.7493`.
+- Backtrader max drawdown: `-10.64%`.
 
-Decision: improved 5 is not accepted as an improvement over improved 4. It reduced vector Sharpe from `0.7968` to `0.6525`, worsened vector max drawdown from `-7.36%` to `-11.19%`, reduced Backtrader Sharpe from `1.0392` to `0.8593`, and worsened Backtrader max drawdown from `-7.62%` to `-11.57%`.
+The warning is important: this is a market-timing overlay and must be treated skeptically. It is acceptable only because it changes one pre-specified design dimension and is stored separately from improved 4.
 
-The warning is important: this is a market-timing overlay and must be treated skeptically. It is useful as a failed experiment because it changes one pre-specified design dimension and is stored separately from improved 4.
+## Improved 6 HZZ Cross-Sectional Trend
+
+Improved 6 was added after improved 5 as a focused trend-signal replacement. It keeps improved 4's composite-weight design, top-10 construction, 5% stop-loss, and 30% take-profit, then changes exactly one thing: the trend column becomes `trend_hzz_z`, a Han, Zhou, Zhu (2016) cross-sectional trend factor estimated from monthly OLS regressions of next-month returns on 11 normalized moving-average ratios across the eligible cross-section, with a strict trailing 12-month average of past betas.
+
+- Vector Sharpe: `0.8136`.
+- Vector max drawdown: `-11.15%`.
+- Backtrader Sharpe: `0.8395`.
+- Backtrader max drawdown: `-11.32%`.
+
+Improved 6 is the first variant whose trend signal is built from the cross-section of stocks rather than from the index. It exists to test the paper's actual methodology against the assignment-prescribed index regression while keeping all other improved 4 design choices fixed.
 

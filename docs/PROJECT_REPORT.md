@@ -50,10 +50,10 @@ Backtrader base strategy:
 
 Backtrader improved 3 strategy:
 
-- final value: `$2,643,354`;
-- total return: `164.34%`;
-- annualized Sharpe: `0.82`;
-- max drawdown: `-15.58%`.
+- final value: `$2,680,533`;
+- total return: `168.05%`;
+- annualized Sharpe: `0.85`;
+- max drawdown: `-15.51%`.
 
 Monte Carlo p-value for the base Sharpe: `0.0000`.
 
@@ -76,4 +76,4 @@ The project should not claim statistically guaranteed skill only because the bac
 
 The improved strategies must be judged sequentially: improved 1 asks whether removing trend look-ahead improves the research design and/or results; improved 2 asks whether adding explicit risk exits improves the improved 1 profile; improved 3 asks whether past-only factor weighting improves improved 2. This is why the presentation should emphasize the full strategy history and avoid claiming that the final result is a guaranteed tradable edge.
 
-The vectorized improvement tests are used for fast monthly screening. The executable Backtrader runs are long-only: base and improved 1 use monthly market orders, while improved 2 and improved 3 use daily adjusted OHLC stop/take triggers with market exits, fixed cash sizing, and the zero-commission setting.
+The vectorized improvement tests are used for fast monthly screening. The executable Backtrader runs are long-only: base and improved 1 use monthly `bt.Order.Market` orders, while improved 2 and improved 3 use daily adjusted OHLC data with `bt.Order.Market` entries/rebalances and native `bt.Order.Stop` / `bt.Order.Limit` protective exits.

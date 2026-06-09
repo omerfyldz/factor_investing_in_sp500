@@ -10,16 +10,16 @@ Improved 5 is a focused market-regime experiment. It does not replace improved 4
 - New rule: trade only when `^GSPC` month-end close is above its existing 10-month SMA.
 - If the filter is off at signal month `t`, the strategy holds cash during month `t+1`.
 - No moving-average window optimization is performed.
-- Daily Backtrader execution still uses adjusted OHLC stop/take threshold checks and market exits.
+- Daily Backtrader execution uses adjusted OHLC data, market entries/rebalances, and native `bt.Order.Stop` / `bt.Order.Limit` protective exits.
 
 ## Results
 
 - Vector Sharpe: `0.6525`.
 - Vector final equity: `$2,148,104`.
 - Vector max drawdown: `-11.19%`.
-- Backtrader final value: `$2,323,043`.
-- Backtrader Sharpe: `0.8593`.
-- Backtrader max drawdown: `-11.57%`.
+- Backtrader final value: `$2,109,769`.
+- Backtrader Sharpe: `0.7493`.
+- Backtrader max drawdown: `-10.64%`.
 - Monte Carlo p-value: `0.6030`.
 
 ## Decision
@@ -28,8 +28,8 @@ Improved 5 is not accepted as a performance improvement over improved 4.
 
 - Improved 4 vector Sharpe: `0.7968`; improved 5 vector Sharpe: `0.6525`.
 - Improved 4 vector max drawdown: `-7.36%`; improved 5 vector max drawdown: `-11.19%`.
-- Improved 4 Backtrader Sharpe: `1.0392`; improved 5 Backtrader Sharpe: `0.8593`.
-- Improved 4 Backtrader max drawdown: `-7.62%`; improved 5 Backtrader max drawdown: `-11.57%`.
+- Improved 4 Backtrader Sharpe: `0.9852`; improved 5 Backtrader Sharpe: `0.7493`.
+- Improved 4 Backtrader max drawdown: `-7.69%`; improved 5 Backtrader max drawdown: `-10.64%`.
 
 The filter likely removed too much exposure and missed rebound months. This is a useful failed experiment because it shows that a simple index cash filter is not automatically better once daily stop-loss/take-profit risk control is already present.
 

@@ -34,6 +34,7 @@ IMPROVED_2_RESULTS_DIR = RESULTS_DIR / "improved_strategy_2"
 IMPROVED_3_RESULTS_DIR = RESULTS_DIR / "improved_strategy_3"
 IMPROVED_4_RESULTS_DIR = RESULTS_DIR / "improved_strategy_4"
 IMPROVED_5_RESULTS_DIR = RESULTS_DIR / "improved_strategy_5"
+IMPROVED_6_RESULTS_DIR = RESULTS_DIR / "improved_strategy_6"
 COMPARISON_RESULTS_DIR = RESULTS_DIR / "comparison"
 FIGURES_DIR = ROOT / "figures"
 DOCS_DIR = ROOT / "docs"
@@ -55,6 +56,11 @@ IMPROVED_2_STRATEGY_NAME = "improved_2_expanding_trend_stop_take_top10"
 IMPROVED_3_STRATEGY_NAME = "improved_3_dynamic_ic_weights_stop_take_top10"
 IMPROVED_4_STRATEGY_NAME = "improved_4_walkforward_stop_take_top10"
 IMPROVED_5_STRATEGY_NAME = "improved_5_regime_filtered_stop_take_top10"
+IMPROVED_6_STRATEGY_NAME = "improved_6_hzz_cross_sectional_trend_stop_take_top10"
+HZZ_RATIO_COLS = [f"ma_ratio_{w}" for w in MA_WINDOWS]
+HZZ_BETA_COLS = [f"beta_ma_ratio_{w}" for w in MA_WINDOWS]
+HZZ_SMOOTH_WINDOW = 12
+HZZ_MIN_CROSS_SECTION = 100
 FACTOR_KEYS = ["roe", "pe", "momentum", "trend"]
 
 
@@ -88,6 +94,7 @@ def ensure_dirs() -> None:
         IMPROVED_3_RESULTS_DIR,
         IMPROVED_4_RESULTS_DIR,
         IMPROVED_5_RESULTS_DIR,
+        IMPROVED_6_RESULTS_DIR,
         COMPARISON_RESULTS_DIR,
         FIGURES_DIR,
         DOCS_DIR,
@@ -485,6 +492,123 @@ def expanding_index_trend_to_stocks(
     trend = pd.concat(trend_rows, ignore_index=True) if trend_rows else pd.DataFrame(columns=["ticker", "month", "trend_expanding_raw"])
     coeffs = pd.DataFrame(coeff_rows)
     return trend, coeffs
+
+
+def stock_ma_ratios(stock_ma: pd.DataFrame) -> pd.DataFrame:
+    """Convert the project's ma_dev_{w} = MA/P - 1 columns into HZZ ma_ratio_{w} = MA/P columns.
+
+    Han, Zhou, Zhu (2016) normalize each moving average by the contemporaneous
+    closing price as ``MA_t / P_t``. The project's existing ``ma_dev_{w}`` columns
+    store ``MA_t / P_t - 1`` because the index-level trend regression is more
+    intuitive in deviation form. The two encodings differ only by a constant of
+    one per column, but the HZZ cross-sectional regression uses the ratio form
+    so we rebuild it here without recomputing rolling means from raw prices.
+    """
+    out = stock_ma[["ticker", "month"]].copy()
+    for dev_col, ratio_col in zip(MA_COLS, HZZ_RATIO_COLS):
+        out[ratio_col] = stock_ma[dev_col].astype(float) + 1.0
+    return out
+
+
+def cross_sectional_trend_betas(
+    monthly: pd.DataFrame,
+    stock_ma_ratios_df: pd.DataFrame,
+    min_obs: int = HZZ_MIN_CROSS_SECTION,
+) -> pd.DataFrame:
+    """Estimate Han, Zhou, Zhu (2016) cross-sectional trend coefficients monthly.
+
+    For each calendar month ``t`` we regress every eligible stock's next-month
+    close-to-close return ``r_{i,t+1}`` on its eleven normalized moving-average
+    ratios observed at month-end ``t``:
+
+        r_{i,t+1} = beta_{0,t} + sum_w beta_{w,t} * (MA_{w,i,t} / P_{i,t}) + eps_{i,t}
+
+    The eleven slopes plus an intercept are stored as the row for month ``t``.
+    These coefficients are *future-looking* at time ``t`` because they use the
+    ``t -> t+1`` return that is not observed until the end of month ``t+1``. The
+    caller must shift them before they are used for trading decisions.
+    """
+    print("Estimating Han, Zhou, Zhu cross-sectional trend coefficients...")
+    base = monthly[["ticker", "month", "next_ret_cc", "eligible_price"]].merge(
+        stock_ma_ratios_df,
+        on=["ticker", "month"],
+        how="left",
+    )
+    rows: list[dict[str, Any]] = []
+    for month, g0 in base.groupby("month", sort=True):
+        g = g0.loc[g0["eligible_price"].fillna(False)].copy()
+        g = g.replace([np.inf, -np.inf], np.nan).dropna(subset=["next_ret_cc", *HZZ_RATIO_COLS])
+        if len(g) < min_obs:
+            continue
+        y = g["next_ret_cc"].astype(float)
+        x = sm.add_constant(g[HZZ_RATIO_COLS].astype(float), has_constant="add")
+        fit = sm.OLS(y, x).fit()
+        row: dict[str, Any] = {
+            "month": pd.Timestamp(month),
+            "n_obs": int(len(g)),
+            "r_squared": float(fit.rsquared),
+            "intercept": float(fit.params.get("const", 0.0)),
+        }
+        for col in HZZ_RATIO_COLS:
+            row[col] = float(fit.params.get(col, 0.0))
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def smooth_trend_betas(betas: pd.DataFrame, window: int = HZZ_SMOOTH_WINDOW) -> pd.DataFrame:
+    """Strictly-trailing rolling mean of past monthly HZZ betas.
+
+    For signal month ``t`` we smooth using betas from months ``[t-window, t-1]``
+    inclusive. The contemporaneous beta at ``t`` is excluded because it was
+    estimated against the return from ``t`` to ``t+1`` and would inject
+    look-ahead information into a decision made at the end of month ``t``.
+    """
+    if betas.empty:
+        return betas.copy()
+    sorted_betas = betas.sort_values("month").reset_index(drop=True)
+    out = sorted_betas[["month"]].copy()
+    coef_cols = ["intercept", *HZZ_RATIO_COLS]
+    for col in coef_cols:
+        lagged = sorted_betas[col].shift(1)
+        out[col] = lagged.rolling(window, min_periods=window).mean()
+    out["smoothed_window"] = window
+    out["smoothed_n_obs"] = (
+        sorted_betas["n_obs"].shift(1).rolling(window, min_periods=window).mean()
+    )
+    return out
+
+
+def hzz_predicted_returns(
+    stock_ma_ratios_df: pd.DataFrame,
+    smoothed_betas: pd.DataFrame,
+) -> pd.DataFrame:
+    """Apply smoothed HZZ coefficients to each stock's contemporaneous MA ratios.
+
+    The predicted return at signal month ``t`` for stock ``i`` is
+    ``intercept_t + sum_w beta_{w,t} * (MA_{w,i,t} / P_{i,t})`` where the
+    ``beta_t`` and ``intercept_t`` come from the strictly-trailing 12-month
+    average produced by :func:`smooth_trend_betas`.
+    """
+    if stock_ma_ratios_df.empty or smoothed_betas.empty:
+        return pd.DataFrame(columns=["ticker", "month", "trend_hzz_raw"])
+    rename = {col: f"beta_{col}" for col in HZZ_RATIO_COLS}
+    rename["intercept"] = "beta_intercept"
+    betas = smoothed_betas.rename(columns=rename)[
+        ["month", "beta_intercept", *HZZ_BETA_COLS]
+    ]
+    merged = stock_ma_ratios_df.merge(betas, on="month", how="left")
+    intercept = merged["beta_intercept"].to_numpy(dtype=float)
+    signals_arr = merged[HZZ_RATIO_COLS].to_numpy(dtype=float)
+    betas_arr = merged[HZZ_BETA_COLS].to_numpy(dtype=float)
+    valid = (
+        np.isfinite(intercept)
+        & np.isfinite(signals_arr).all(axis=1)
+        & np.isfinite(betas_arr).all(axis=1)
+    )
+    pred = np.where(valid, intercept + np.sum(signals_arr * betas_arr, axis=1), np.nan)
+    out = merged[["ticker", "month"]].copy()
+    out["trend_hzz_raw"] = pred
+    return out
 
 
 def winsorized_zscore_by_month(df: pd.DataFrame, source: str, out_col: str) -> pd.Series:
@@ -999,11 +1123,20 @@ class MonthlySignalStrategy(bt.Strategy):
             if self._has_live_order(ticker):
                 continue
             if pos.size < 0:
-                self.exit_orders[ticker] = self._remember(self.buy(data=data, size=abs(pos.size)), "short_cover")
+                self.exit_orders[ticker] = self._remember(
+                    self.buy(data=data, size=abs(pos.size), exectype=bt.Order.Market),
+                    "short_cover",
+                )
             elif pos.size and ticker not in target:
-                self.exit_orders[ticker] = self._remember(self.close(data=data), "rebalance_exit")
+                self.exit_orders[ticker] = self._remember(
+                    self.close(data=data, exectype=bt.Order.Market),
+                    "rebalance_exit",
+                )
             elif ticker in target and not pos.size:
-                self.entry_orders[ticker] = self._remember(self.buy(data=data), "rebalance_entry")
+                self.entry_orders[ticker] = self._remember(
+                    self.buy(data=data, exectype=bt.Order.Market),
+                    "rebalance_entry",
+                )
 
         self.equity_log.append({"month": dt, "value": self.broker.getvalue(), "cash": self.broker.getcash()})
         for data in self.datas[1:]:
@@ -1047,7 +1180,10 @@ class MonthlySignalStrategy(bt.Strategy):
         if order.status == order.Completed:
             pos = self.getposition(order.data)
             if pos.size < 0:
-                self.exit_orders[ticker] = self._remember(self.buy(data=order.data, size=abs(pos.size)), "short_cover")
+                self.exit_orders[ticker] = self._remember(
+                    self.buy(data=order.data, size=abs(pos.size), exectype=bt.Order.Market),
+                    "short_cover",
+                )
 
     def notify_trade(self, trade):
         if not trade.isclosed:
@@ -1079,9 +1215,11 @@ class DailySignalStopTakeStrategy(bt.Strategy):
         self.position_log: list[dict[str, Any]] = []
         self.entry_orders: dict[str, bt.Order] = {}
         self.exit_orders: dict[str, bt.Order] = {}
+        self.protective_orders: dict[str, list[bt.Order]] = {}
         self.order_reason: dict[int, str] = {}
         self.entry_prices: dict[str, float] = {}
         self.last_rebalance_period: pd.Period | None = None
+        self.pending_rebalance_exit: set[str] = set()
 
     @staticmethod
     def _is_live_order(order: bt.Order) -> bool:
@@ -1099,62 +1237,128 @@ class DailySignalStopTakeStrategy(bt.Strategy):
             candidates.append(self.exit_orders[ticker])
         return any(self._is_live_order(order) for order in candidates)
 
+    def _live_protective_orders(self, ticker: str) -> list[bt.Order]:
+        return [order for order in self.protective_orders.get(ticker, []) if self._is_live_order(order)]
+
+    def _has_live_protective_order(self, ticker: str) -> bool:
+        return bool(self._live_protective_orders(ticker))
+
+    def _remove_protective_order(self, ticker: str, order_ref: int) -> None:
+        orders = [order for order in self.protective_orders.get(ticker, []) if order.ref != order_ref]
+        if orders:
+            self.protective_orders[ticker] = orders
+        else:
+            self.protective_orders.pop(ticker, None)
+
     def _remember(self, order: bt.Order, reason: str) -> bt.Order:
         self.order_reason[order.ref] = reason
         return order
 
-    def _sell_position(self, data: bt.LineSeries, reason: str) -> None:
+    def _cancel_protective_orders(self, data: bt.LineSeries, exclude_ref: int | None = None) -> bool:
+        ticker = data._name
+        canceled = False
+        for order in list(self.protective_orders.get(ticker, [])):
+            if exclude_ref is not None and order.ref == exclude_ref:
+                continue
+            if self._is_live_order(order):
+                self.cancel(order)
+                canceled = True
+        return canceled
+
+    def _submit_market_sell(self, data: bt.LineSeries, size: int, reason: str) -> None:
         ticker = data._name
         if self._has_live_order(ticker):
             return
-        pos = self.getposition(data)
-        if pos.size > 0:
-            self.exit_orders[ticker] = self._remember(self.sell(data=data, size=int(pos.size)), reason)
+        if size > 0:
+            self.exit_orders[ticker] = self._remember(
+                self.sell(data=data, size=int(size), exectype=bt.Order.Market),
+                reason,
+            )
 
     def _buy_to_cover(self, data: bt.LineSeries) -> None:
         ticker = data._name
         if self._has_live_order(ticker):
             return
+        self._cancel_protective_orders(data)
         pos = self.getposition(data)
         if pos.size < 0:
-            self.exit_orders[ticker] = self._remember(self.buy(data=data, size=abs(int(pos.size))), "short_cover")
+            self.exit_orders[ticker] = self._remember(
+                self.buy(data=data, size=abs(int(pos.size)), exectype=bt.Order.Market),
+                "short_cover",
+            )
+
+    def _submit_protective_orders(self, data: bt.LineSeries, entry_price: float, size: int) -> None:
+        ticker = data._name
+        if size <= 0 or not np.isfinite(entry_price) or entry_price <= 0:
+            return
+        self._cancel_protective_orders(data)
+
+        stop_loss = None if self.params.stop_loss is None else abs(float(self.params.stop_loss))
+        take_profit = None if self.params.take_profit is None else abs(float(self.params.take_profit))
+        submitted: list[bt.Order] = []
+
+        stop_order = None
+        if stop_loss is not None:
+            stop_price = entry_price * (1 - stop_loss)
+            stop_order = self.sell(
+                data=data,
+                size=int(size),
+                exectype=bt.Order.Stop,
+                price=stop_price,
+            )
+            self._remember(stop_order, "stop_loss")
+            submitted.append(stop_order)
+
+        if take_profit is not None:
+            limit_price = entry_price * (1 + take_profit)
+            kwargs = {"oco": stop_order} if stop_order is not None else {}
+            limit_order = self.sell(
+                data=data,
+                size=int(size),
+                exectype=bt.Order.Limit,
+                price=limit_price,
+                **kwargs,
+            )
+            self._remember(limit_order, "take_profit")
+            submitted.append(limit_order)
+
+        if submitted:
+            self.protective_orders[ticker] = submitted
 
     def prenext(self):
         self.next()
 
     def next(self):
         dt = pd.Timestamp(self.datas[0].datetime.date(0)).normalize()
-        self._apply_daily_risk_exits(dt)
+        self._process_pending_rebalance_exits(dt)
         self._rebalance_if_needed(dt)
         self._log_daily_state(dt)
 
-    def _apply_daily_risk_exits(self, dt: pd.Timestamp) -> None:
-        stop_loss = None if self.params.stop_loss is None else abs(float(self.params.stop_loss))
-        take_profit = None if self.params.take_profit is None else abs(float(self.params.take_profit))
-        if stop_loss is None and take_profit is None:
+    def _process_pending_rebalance_exits(self, dt: pd.Timestamp) -> None:
+        if not self.pending_rebalance_exit:
             return
-
         for data in self.datas[1:]:
             if not self._is_current_bar(data, dt):
                 continue
             ticker = data._name
+            if ticker not in self.pending_rebalance_exit:
+                continue
             if self._has_live_order(ticker):
+                continue
+            if self._has_live_protective_order(ticker):
+                self._cancel_protective_orders(data)
                 continue
             pos = self.getposition(data)
             if pos.size < 0:
                 self._buy_to_cover(data)
+                self.pending_rebalance_exit.discard(ticker)
                 continue
             if pos.size <= 0:
+                self.entry_prices.pop(ticker, None)
+                self.pending_rebalance_exit.discard(ticker)
                 continue
-            entry_price = self.entry_prices.get(ticker, float(pos.price))
-            if not np.isfinite(entry_price) or entry_price <= 0:
-                continue
-            stop_hit = stop_loss is not None and float(data.low[0]) <= entry_price * (1 - stop_loss)
-            take_hit = take_profit is not None and float(data.high[0]) >= entry_price * (1 + take_profit)
-            if stop_hit:
-                self._sell_position(data, "stop_loss")
-            elif take_hit:
-                self._sell_position(data, "take_profit")
+            self._submit_market_sell(data, int(pos.size), "rebalance_exit")
+            self.pending_rebalance_exit.discard(ticker)
 
     def _rebalance_if_needed(self, dt: pd.Timestamp) -> None:
         current_period = dt.to_period("M")
@@ -1174,9 +1378,19 @@ class DailySignalStopTakeStrategy(bt.Strategy):
             if pos.size < 0:
                 self._buy_to_cover(data)
             elif pos.size > 0 and ticker not in target:
-                self._sell_position(data, "rebalance_exit")
+                if self._has_live_protective_order(ticker):
+                    self._cancel_protective_orders(data)
+                    self.pending_rebalance_exit.add(ticker)
+                else:
+                    self._submit_market_sell(data, int(pos.size), "rebalance_exit")
             elif pos.size == 0 and ticker in target:
-                self.entry_orders[ticker] = self._remember(self.buy(data=data), "rebalance_entry")
+                self.entry_orders[ticker] = self._remember(
+                    self.buy(data=data, exectype=bt.Order.Market),
+                    "rebalance_entry",
+                )
+            elif pos.size > 0 and ticker in target and not self._has_live_protective_order(ticker):
+                entry_price = self.entry_prices.get(ticker, float(pos.price))
+                self._submit_protective_orders(data, entry_price, int(pos.size))
 
         self.last_rebalance_period = current_period
 
@@ -1222,6 +1436,7 @@ class DailySignalStopTakeStrategy(bt.Strategy):
             self.entry_orders.pop(ticker, None)
         if self.exit_orders.get(ticker) is not None and self.exit_orders[ticker].ref == order.ref:
             self.exit_orders.pop(ticker, None)
+        self._remove_protective_order(ticker, order.ref)
 
         if order.status != order.Completed:
             return
@@ -1229,13 +1444,17 @@ class DailySignalStopTakeStrategy(bt.Strategy):
         if order.isbuy():
             if pos.size > 0 and reason != "short_cover":
                 self.entry_prices[ticker] = float(order.executed.price)
+                self._submit_protective_orders(order.data, self.entry_prices[ticker], int(pos.size))
             elif pos.size <= 0:
                 self.entry_prices.pop(ticker, None)
         else:
+            if reason in {"stop_loss", "take_profit"}:
+                self._cancel_protective_orders(order.data, exclude_ref=order.ref)
             if pos.size < 0:
                 self._buy_to_cover(order.data)
             elif pos.size == 0:
                 self.entry_prices.pop(ticker, None)
+                self.pending_rebalance_exit.discard(ticker)
 
     def notify_trade(self, trade):
         if not trade.isclosed:
@@ -1371,7 +1590,7 @@ def run_backtrader_daily_stop_take(
     take_profit: float | None,
     output_dir: Path | None = None,
 ) -> dict[str, pd.DataFrame]:
-    print(f"Running daily Backtrader stop/take strategy: {name}...")
+    print(f"Running daily Backtrader native stop/limit strategy: {name}...")
     if stop_loss is None and take_profit is None:
         raise ValueError("Daily stop/take runner requires at least one risk-exit threshold.")
     tickers = sorted({t for names in signals.values() for t in names})
@@ -1762,7 +1981,7 @@ def write_strategy_history(
 
     content = f"""# Strategy History And Improvement Log
 
-This file is the living history of the S&P 500 factor investing project. It records what we built, what we removed, and what we should revisit later. The executable project is now deliberately staged into four active strategies: base, improved 1, improved 2, and improved 3.
+This file is the living history of the S&P 500 factor investing project. It records what we built, what we removed, and what we should revisit later. The executable project is deliberately staged: the core ladder is base through improved 3, and the later focused experiments are improved 4 and improved 5.
 
 ## Project Rules We Must Preserve
 
@@ -1835,9 +2054,11 @@ Improved 2 builds directly on improved 1 and adds risk exits:
 - stop-loss: 10%;
 - take-profit: 20%;
 - vector results use a monthly open/high/low/close approximation with stop priority if stop and take-profit are both touched in the same month;
-- Backtrader results use daily adjusted OHLC bars, daily stop/take threshold checks, and market exits. If both thresholds are touched on the same daily bar, the stop-loss is given priority.
+- Backtrader results use daily adjusted OHLC bars, explicit market orders for entries/rebalances, and native `bt.Order.Stop` / `bt.Order.Limit` protective exits.
 
 Improved 2 vector Sharpe: `{improved_2['annualized_sharpe']:.4f}`.
+
+Order-model note: the Backtrader stop/take engine now uses native `bt.Order.Stop` and `bt.Order.Limit` protective orders. Rebalance exits cancel live protective orders before submitting market exits so stale stop/limit orders cannot create accidental shorts. Saved Backtrader metrics should be regenerated before final interpretation under this execution model.
 
 ### 4. Improved Strategy 3: Past-Only Dynamic Factor Weighting
 
@@ -1885,7 +2106,7 @@ The project is stronger after separating the literal base from sequential improv
 - Improved 1 is primarily a methodology improvement because it reduces look-ahead bias in the trend factor.
 - Improved 2 is a risk-management test on top of improved 1 and should be judged by both return and drawdown.
 - Improved 3 is a weighting-process test on top of improved 2 and should be judged against improved 2, not just against the base.
-- Vector curves are screening summaries; executable trading evidence comes from the saved Backtrader runs. Base and improved 1 use monthly market-order Backtrader; improved 2 and improved 3 use daily Backtrader risk exits.
+- Vector curves are screening summaries; executable trading evidence comes from the saved Backtrader runs. Base and improved 1 use monthly `bt.Order.Market` Backtrader orders; improved 2 and improved 3 use daily Backtrader market entries/rebalances plus native stop/limit protective exits.
 - The universe uses current S&P 500 constituents, so survivorship bias remains.
 - Transaction costs and slippage are ignored because the assignment requires commission `0`.
 - A production strategy would need historical index membership, costs, slippage, beta/sector neutrality, and a data-snooping-adjusted test such as White's Reality Check or Hansen's SPA.
@@ -2071,7 +2292,7 @@ def write_project_docs(
 
     readme = f"""# S&P 500 Factor Investing Project
 
-This is a standalone S&P 500 factor investing project aligned with the EC581 factor-investing assignment. It adapts the BIST100 requirement to the U.S. market by using Yahoo Finance `^GSPC` as the S&P 500 index benchmark and trend-regression input.
+This is a standalone S&P 500 factor investing research project. It studies quality, value, momentum, and trend signals on a frozen current-constituent S&P 500 panel, using Yahoo Finance `^GSPC` as the benchmark and trend-regression index.
 
 ## Data Window
 
@@ -2087,7 +2308,7 @@ Raw inputs:
 
 ## Strategy
 
-Required factors:
+Implemented factors:
 
 - ROE: higher is better.
 - P/E: lower positive P/E is better.
@@ -2106,7 +2327,7 @@ All factors are month-end, lagged by one month, winsorized at 1st/99th percentil
 - Monte Carlo random-portfolio Sharpe p-value for improved 3: `{final_mc_p:.4f}`.
 - Improved 3 annualized alpha vs `^GSPC`: `{best_alpha:.2%}` with alpha t-stat `{best_alpha_t:.2f}`.
 {wf_line}
-Backtrader is used for all four active strategy stages. Base and improved 1 use the monthly market-order engine. Improved 2 and improved 3 use daily adjusted OHLC bars for stop-loss/take-profit threshold checks and market exits after a threshold is touched. All strategies use initial cash `1,000,000`, `FixedCashSizer` at `100,000` per trade, and zero commission.
+Backtrader is used for the staged strategy tests. Base and improved 1 use the monthly `bt.Order.Market` engine. Improved 2, improved 3, improved 4, and improved 5 use daily adjusted OHLC bars, `bt.Order.Market` entries/rebalances, and native `bt.Order.Stop` / `bt.Order.Limit` protective exits. All strategies use initial cash `1,000,000`, `FixedCashSizer` at `100,000` per trade, and zero commission.
 
 ## Output Layout
 
@@ -2114,6 +2335,8 @@ Backtrader is used for all four active strategy stages. Base and improved 1 use 
 - `results/improved_strategy/`: improved 1 expanding-regression strategy outputs.
 - `results/improved_strategy_2/`: improved 2 stop-loss/take-profit strategy outputs.
 - `results/improved_strategy_3/`: improved 3 dynamic-weight strategy outputs.
+- `results/improved_strategy_4/`: improved 4 stop/take sensitivity and selected candidate.
+- `results/improved_strategy_5/`: improved 5 market-regime filter experiment.
 - `results/comparison/`: staged base-versus-improved comparison and walk-forward files.
 - `results/fmp_analysis/`: factor-mimicking portfolio, IC, and factor comparison files.
 
@@ -2129,7 +2352,7 @@ The run reads frozen CSVs, regenerates processed data, results, figures, and the
 ## Limitations
 
 - The universe is current S&P 500 constituents, so the study has survivorship bias.
-- Transaction costs and slippage are ignored because the assignment specifies commission `0`.
+- Transaction costs and slippage are ignored by design in the current research run.
 - Shorting is shown only in FMP analysis; the implemented trading strategy is long-only.
 - Public factor performance can decay over time, especially after 2020.
 """
@@ -2213,7 +2436,7 @@ The project should not claim statistically guaranteed skill only because the bac
 
 The improved strategies must be judged sequentially: improved 1 asks whether removing trend look-ahead improves the research design and/or results; improved 2 asks whether adding explicit risk exits improves the improved 1 profile; improved 3 asks whether past-only factor weighting improves improved 2. This is why the presentation should emphasize the full strategy history and avoid claiming that the final result is a guaranteed tradable edge.
 
-The vectorized improvement tests are used for fast monthly screening. The executable Backtrader runs are long-only: base and improved 1 use monthly market orders, while improved 2 and improved 3 use daily adjusted OHLC stop/take triggers with market exits, fixed cash sizing, and the zero-commission setting.
+The vectorized improvement tests are used for fast monthly screening. The executable Backtrader runs are long-only: base and improved 1 use monthly `bt.Order.Market` orders, while improved 2 and improved 3 use daily adjusted OHLC data with `bt.Order.Market` entries/rebalances and native `bt.Order.Stop` / `bt.Order.Limit` protective exits.
 """
     (DOCS_DIR / "PROJECT_REPORT.md").write_text(report, encoding="utf-8")
 
@@ -2385,7 +2608,7 @@ def make_presentation(
                 f"Base Backtrader final value: ${bt_base['final_value']:,.0f}; Sharpe: {bt_base['annualized_sharpe']:.2f}.",
                 f"Improved 3 Backtrader final value: ${bt_best['final_value']:,.0f}; Sharpe: {bt_best['annualized_sharpe']:.2f}.",
                 "Settings: initial cash 1,000,000; FixedCashSizer 100,000; commission 0.",
-                "Improved 2 and improved 3 use daily Backtrader stop/take threshold checks with market exits.",
+                "Improved 2 and improved 3 use daily Backtrader bt.Order.Stop / bt.Order.Limit protective exits.",
                 "Saved outputs include orders, trades, positions, equity curves, and metrics.",
             ],
         )

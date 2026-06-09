@@ -24,7 +24,7 @@ The base composite score is the equal-weight average of ROE, P/E, momentum, and 
 
 ## Strategy Ladder
 
-The active strategy set contains exactly four staged strategies:
+The active strategy set contains a core ladder plus focused follow-up experiments:
 
 1. `base_equal_top10`: equal-weight ROE/P/E/momentum/full-sample-trend composite, top 10, no stop-loss/take-profit.
 2. `improved_1_expanding_trend_top10`: same as base, but trend uses expanding no-lookahead regression.
@@ -35,9 +35,10 @@ The active strategy set contains exactly four staged strategies:
 
 This design makes the improvement path readable: each stage changes one main idea.
 
-Backtrader execution is separated by strategy stage. Base and improved 1 use monthly market orders. Improved 2 and improved 3 use daily adjusted OHLC bars for stop-loss/take-profit threshold checks and market exits after a threshold is touched.
-Improved 4 also uses daily adjusted OHLC Backtrader stop/take checks for the selected threshold pair.
-Improved 5 uses the same daily Backtrader stop/take execution as improved 4, but its monthly signal list is empty when the regime filter is off.
+Backtrader execution is separated by strategy stage. Base and improved 1 use explicit monthly `bt.Order.Market` orders. Improved 2 and improved 3 use daily adjusted OHLC bars, explicit `bt.Order.Market` entries/rebalances, and native `bt.Order.Stop` / `bt.Order.Limit` protective exits.
+Improved 4 uses the same daily Backtrader native stop/limit execution for the selected threshold pair.
+Improved 5 uses the same daily Backtrader native stop/limit execution as improved 4, but its monthly signal list is empty when the regime filter is off.
+For risk-managed strategies, rebalance exits cancel live protective orders before submitting market exits. This prevents stale stop/limit orders from firing after a position has already been closed.
 
 ## Main Files
 

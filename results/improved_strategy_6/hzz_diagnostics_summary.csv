@@ -1,0 +1,2 @@
+n_beta_months,n_smoothed_months_usable,first_usable_signal_month,median_cross_section_size,median_r_squared,smoothing_window_months,min_cross_section_obs
+192,180,2011-05-31T00:00:00,449.5,0.1465060173752894,12,100

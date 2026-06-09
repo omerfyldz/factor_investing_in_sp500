@@ -151,7 +151,7 @@ Improved 5 is a focused market-regime experiment. It does not replace improved 4
 - New rule: trade only when `^GSPC` month-end close is above its existing 10-month SMA.
 - If the filter is off at signal month `t`, the strategy holds cash during month `t+1`.
 - No moving-average window optimization is performed.
-- Daily Backtrader execution still uses adjusted OHLC stop/take threshold checks and market exits.
+- Daily Backtrader execution uses adjusted OHLC data, market entries/rebalances, and native `bt.Order.Stop` / `bt.Order.Limit` protective exits.
 
 ## Results
 
