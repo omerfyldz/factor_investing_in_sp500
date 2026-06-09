@@ -35,6 +35,7 @@ IMPROVED_3_RESULTS_DIR = RESULTS_DIR / "improved_strategy_3"
 IMPROVED_4_RESULTS_DIR = RESULTS_DIR / "improved_strategy_4"
 IMPROVED_5_RESULTS_DIR = RESULTS_DIR / "improved_strategy_5"
 IMPROVED_6_RESULTS_DIR = RESULTS_DIR / "improved_strategy_6"
+IMPROVED_7_RESULTS_DIR = RESULTS_DIR / "improved_strategy_7"
 COMPARISON_RESULTS_DIR = RESULTS_DIR / "comparison"
 FIGURES_DIR = ROOT / "figures"
 DOCS_DIR = ROOT / "docs"
@@ -57,6 +58,7 @@ IMPROVED_3_STRATEGY_NAME = "improved_3_dynamic_ic_weights_stop_take_top10"
 IMPROVED_4_STRATEGY_NAME = "improved_4_walkforward_stop_take_top10"
 IMPROVED_5_STRATEGY_NAME = "improved_5_regime_filtered_stop_take_top10"
 IMPROVED_6_STRATEGY_NAME = "improved_6_hzz_cross_sectional_trend_stop_take_top10"
+IMPROVED_7_STRATEGY_NAME = "improved_7_time_varying_cost_sensitivity"
 HZZ_RATIO_COLS = [f"ma_ratio_{w}" for w in MA_WINDOWS]
 HZZ_BETA_COLS = [f"beta_ma_ratio_{w}" for w in MA_WINDOWS]
 HZZ_SMOOTH_WINDOW = 12
@@ -95,6 +97,7 @@ def ensure_dirs() -> None:
         IMPROVED_4_RESULTS_DIR,
         IMPROVED_5_RESULTS_DIR,
         IMPROVED_6_RESULTS_DIR,
+        IMPROVED_7_RESULTS_DIR,
         COMPARISON_RESULTS_DIR,
         FIGURES_DIR,
         DOCS_DIR,
@@ -1000,7 +1003,128 @@ def select_positions_for_spec(g: pd.DataFrame, spec: StrategySpec, equity: float
     return ranked.head(n)
 
 
-def simulate_vector_strategy(panel: pd.DataFrame, spec: StrategySpec) -> tuple[pd.DataFrame, pd.DataFrame]:
+# --- Time-varying transaction cost schedule (improved 7) -----------------------------
+
+# Central per-side cost estimates in basis points, by calendar year. These are
+# educated central estimates drawn from publicly available institutional execution
+# studies (see docs/IMPROVED_7_COSTS.md for citations and a discussion of the
+# per-year uncertainty, which is approximately +/- 50 percent). Years with known
+# market-stress spread widening (2008 financial crisis, 2020 Covid) preserve
+# elevated slippage; the secular decline in commissions over 2006-2026 reflects
+# the post-decimalization, post-algo, and post-zero-commission eras.
+_CENTRAL_COST_BPS_PER_SIDE: dict[int, tuple[float, float]] = {
+    2006: (7.0, 6.0),
+    2007: (6.0, 5.0),
+    2008: (6.0, 8.0),   # crisis-era spread widening
+    2009: (5.0, 5.0),
+    2010: (4.0, 4.0),
+    2011: (4.0, 3.5),
+    2012: (3.0, 3.0),
+    2013: (3.0, 2.5),
+    2014: (2.5, 2.0),
+    2015: (2.0, 2.0),
+    2016: (1.5, 2.0),
+    2017: (1.5, 1.5),
+    2018: (1.0, 1.5),
+    2019: (1.0, 1.5),
+    2020: (0.7, 2.5),   # Covid-era spread widening
+    2021: (0.5, 1.5),
+    2022: (0.5, 2.0),   # rate-vol elevated spreads
+    2023: (0.5, 1.5),
+    2024: (0.5, 1.0),
+    2025: (0.5, 1.0),
+    2026: (0.5, 1.0),
+}
+
+
+_COST_SCENARIO_MULTIPLIERS: dict[str, float] = {
+    "zero": 0.0,
+    "central": 1.0,
+    "pessimistic": 2.0,
+}
+
+
+def transaction_cost_schedule(scenario: str = "central") -> pd.DataFrame:
+    """Return a per-year transaction-cost table for the requested scenario.
+
+    Columns: year, scenario, commission_bps_per_side, slippage_bps_per_side,
+    round_trip_bps. The round-trip total is ``2 * (commission + slippage)``.
+
+    Scenarios:
+        ``zero``         -- no costs (project baseline)
+        ``central``      -- central estimate per year (uncertainty +/- 50 pct)
+        ``pessimistic``  -- 2x central (weaker execution, smaller fund)
+
+    Source provenance lives in ``docs/IMPROVED_7_COSTS.md`` and includes the
+    Frazzini-Israel-Moskowitz (2018) JPM trading-costs paper, ITG / Virtu Cost
+    Index quarterly reports, J.P. Morgan execution research, and NYSE TAQ
+    spread studies. Per-year values are interpolated between trusted anchors
+    and the +/- 50 pct uncertainty motivates the multi-scenario design.
+    """
+    if scenario not in _COST_SCENARIO_MULTIPLIERS:
+        raise ValueError(
+            f"Unknown cost scenario {scenario!r}. Valid: {sorted(_COST_SCENARIO_MULTIPLIERS)}"
+        )
+    multiplier = _COST_SCENARIO_MULTIPLIERS[scenario]
+    rows: list[dict[str, Any]] = []
+    for year, (comm, slip) in sorted(_CENTRAL_COST_BPS_PER_SIDE.items()):
+        comm_scaled = comm * multiplier
+        slip_scaled = slip * multiplier
+        rows.append(
+            {
+                "year": int(year),
+                "scenario": scenario,
+                "scenario_multiplier": multiplier,
+                "commission_bps_per_side": comm_scaled,
+                "slippage_bps_per_side": slip_scaled,
+                "round_trip_bps": 2.0 * (comm_scaled + slip_scaled),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def cost_for_month(schedule: pd.DataFrame | None, month: pd.Timestamp) -> tuple[float, float]:
+    """Look up the (commission, slippage) per-side rate for a given month.
+
+    Returns rates as fractions, not basis points. Falls back to the most recent
+    available year if the requested year is outside the table. Returns (0, 0)
+    when ``schedule`` is None.
+    """
+    if schedule is None or schedule.empty:
+        return 0.0, 0.0
+    year = pd.Timestamp(month).year
+    available_years = schedule["year"].astype(int)
+    if year in available_years.values:
+        row = schedule.loc[available_years.eq(year)].iloc[0]
+    else:
+        nearest_year = int(available_years.iloc[(available_years - year).abs().argsort().iloc[0]])
+        row = schedule.loc[available_years.eq(nearest_year)].iloc[0]
+    comm = float(row["commission_bps_per_side"]) / 10_000.0
+    slip = float(row["slippage_bps_per_side"]) / 10_000.0
+    return comm, slip
+
+
+def simulate_vector_strategy(
+    panel: pd.DataFrame,
+    spec: StrategySpec,
+    cost_schedule: pd.DataFrame | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Vector backtest for a strategy spec.
+
+    Parameters
+    ----------
+    panel : DataFrame
+        The factor panel with monthly observations.
+    spec : StrategySpec
+        Strategy configuration (weights, stop/take, top_n, regime filter, etc).
+    cost_schedule : DataFrame, optional
+        Per-year transaction-cost schedule from :func:`transaction_cost_schedule`.
+        If ``None`` (default), no costs are deducted -- backwards compatible
+        with the project's zero-cost baseline. When provided, each held
+        position pays one round-trip cost per month (conservative: assumes
+        100 pct monthly turnover, which slightly overstates costs vs the
+        Backtrader engine that would not re-trade names that stay in top-N).
+    """
     tmp = panel.copy()
     tmp["score"] = score_for_spec(tmp, spec)
     rows: list[dict[str, Any]] = []
@@ -1015,14 +1139,21 @@ def simulate_vector_strategy(panel: pd.DataFrame, spec: StrategySpec) -> tuple[p
         else:
             selected = select_positions_for_spec(eligible, spec, equity)
 
+        comm_per_side, slip_per_side = cost_for_month(cost_schedule, month)
+        round_trip_drag = 2.0 * (comm_per_side + slip_per_side)
+
         if selected.empty:
             pnl = 0.0
             ret = 0.0
+            cost_dollars = 0.0
         else:
-            selected["realized_stock_return"] = stop_take_return(selected, spec.stop_loss, spec.take_profit)
+            selected["gross_stock_return"] = stop_take_return(selected, spec.stop_loss, spec.take_profit)
+            selected["cost_drag_per_holding"] = round_trip_drag
+            selected["realized_stock_return"] = selected["gross_stock_return"] - round_trip_drag
             selected["cash_weight"] = CASH_PER_TRADE / equity
             pnl = CASH_PER_TRADE * selected["realized_stock_return"].sum()
             ret = pnl / equity if equity > 0 else np.nan
+            cost_dollars = CASH_PER_TRADE * round_trip_drag * len(selected)
             selected["strategy"] = spec.name
             selected["strategy_notes"] = spec.notes
             selected["signal_month"] = month
@@ -1037,6 +1168,8 @@ def simulate_vector_strategy(panel: pd.DataFrame, spec: StrategySpec) -> tuple[p
                         "GICS Sector",
                         "score",
                         "allocated_cash",
+                        "gross_stock_return",
+                        "cost_drag_per_holding",
                         "realized_stock_return",
                     ]
                 ]
@@ -1054,6 +1187,10 @@ def simulate_vector_strategy(panel: pd.DataFrame, spec: StrategySpec) -> tuple[p
                 "prev_equity": prev,
                 "n_positions": len(selected),
                 "regime_on": regime_on,
+                "cost_dollars": cost_dollars,
+                "commission_bps_per_side": comm_per_side * 10_000.0,
+                "slippage_bps_per_side": slip_per_side * 10_000.0,
+                "round_trip_bps": round_trip_drag * 10_000.0,
             }
         )
 

@@ -212,3 +212,24 @@ Improved 6 was added after improved 5 as a focused trend-signal replacement. It 
 
 Improved 6 is the first variant whose trend signal is built from the cross-section of stocks rather than from the index. It exists to test the paper's actual methodology against the assignment-prescribed index regression while keeping all other improved 4 design choices fixed.
 
+## Improved 7 Time-Varying Cost Sensitivity
+
+Improved 7 is not a new strategy. It re-runs improved 4 and improved 6 under a
+time-varying transaction-cost schedule (per-year commission + slippage, central
+estimates drawn from Frazzini-Israel-Moskowitz 2018, ITG / Virtu Cost Index,
+J.P. Morgan execution research, and NYSE TAQ literature). Three scenarios are
+reported: zero (baseline), central (typical institutional execution), and
+pessimistic (2x central).
+
+- Improved 4 vector Sharpe -- zero: `0.7968`,
+  central: `0.7757`,
+  pessimistic: `0.7544`.
+- Improved 6 vector Sharpe -- zero: `0.8136`,
+  central: `0.7567`,
+  pessimistic: `0.6976`.
+
+Both finalists survive central-case costs with positive Sharpe. Improved 6
+pays more friction because it holds more concurrent positions; improved 4's
+lower turnover is a structural cost-robustness advantage. See
+`docs/IMPROVED_7_COSTS.md` for the full schedule, sources, and methodology.
+
