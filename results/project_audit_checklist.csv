@@ -1,0 +1,14 @@
+item,status
+requirements.txt has pinned versions,OK
+raw data stored as CSV,OK
+code reads frozen CSVs,OK
+Backtrader used,OK
+"initial cash 1,000,000",OK
+"FixedCashSizer 100,000 per trade",OK
+commission zero,OK
+market orders for base strategy,OK
+backtest results saved,OK
+PDF presentation generated,OK
+group participant names in PDF,NEEDS_INPUT
+no data after 2026-05-31,OK
+statement fundamentals use date_available,OK

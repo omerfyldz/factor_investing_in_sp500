@@ -1,0 +1,40 @@
+project:
+  name: sp500_factor_investing
+  universe: sp500
+  benchmark_ticker: "^GSPC"
+  cutoff_date: "2026-05-31"
+  group_participants: []
+
+paths:
+  raw_data: data/raw
+  processed_data: data/processed
+  results: results
+  figures: figures
+
+backtest:
+  initial_cash: 1000000
+  cash_units: "USD-equivalent assignment units"
+  cash_per_trade: 100000
+  rebalance_frequency: monthly
+  commission: 0.0
+
+factors:
+  value:
+    pe_ratio: lower_is_better
+  quality:
+    roe: higher_is_better
+  momentum:
+    lookback_months: 12
+    skip_recent_months: 0
+  trend:
+    moving_average_windows: [3, 5, 10, 20, 50, 100, 200, 400, 600, 800, 1000]
+    index_regression_input: "^GSPC"
+    significance_alpha: 0.05
+
+strategies:
+  base: base_equal_top10
+  improved_1: improved_1_expanding_trend_top10
+  improved_2: improved_2_expanding_trend_stop_take_top10
+  improved_3: improved_3_dynamic_ic_weights_stop_take_top10
+  improved_4: improved_4_walkforward_stop_take_top10
+  improved_5: improved_5_regime_filtered_stop_take_top10

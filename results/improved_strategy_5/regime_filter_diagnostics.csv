@@ -1,0 +1,8 @@
+metric,value,detail
+total_months,240.0,All signal months in the processed factor panel.
+regime_on_months,179.0,^GSPC month-end close is above its 10-month SMA.
+regime_off_months,61.0,Strategy should hold cash for the following month.
+invested_months,85.0,Months with at least one selected position in the vector backtest.
+cash_months,155.0,Months with no selected positions due to regime filter or unavailable signals.
+avg_return_when_regime_on,0.0044833823205772515,Average strategy return in signal months where the regime filter is on.
+avg_return_when_regime_off,0.0,Should be near zero because the filter sends the strategy to cash.

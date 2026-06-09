@@ -1,0 +1,2 @@
+candidate,benchmark,accepted_as_improvement,reason,vector_sharpe_delta,vector_max_drawdown_delta,backtrader_sharpe_delta,backtrader_max_drawdown_delta
+improved_5_regime_filtered_stop_take_top10,improved_4_walkforward_stop_take_top10,False,"Regime filter reduced vector and Backtrader Sharpe, final value, and drawdown quality; Monte Carlo p-value rose to 0.603.",-0.14428850230109025,-0.038315026724901696,-0.17994142943570768,-0.0395259323558642

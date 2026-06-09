@@ -1,0 +1,7 @@
+check,status,detail
+regime_rule,OK,^GSPC close > 10-month SMA
+regime_window_not_optimized,OK,10 months
+stop_loss_inherited_from_improved_4,OK,0.0500
+take_profit_inherited_from_improved_4,OK,0.3000
+monte_carlo_p_value,OK,0.6030
+backtrader_long_only,OK,28.0
