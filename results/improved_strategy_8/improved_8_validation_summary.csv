@@ -1,0 +1,9 @@
+check,status,detail
+top_n,OK,20
+sizing_method,OK,percent_of_equity
+sizing_target_pct,OK,0.0500
+stop_loss_inherited_from_improved_4,OK,0.0500
+take_profit_inherited_from_improved_4,OK,0.3000
+evaluation_start,OK,2016-05-31
+monte_carlo_p_value,OK,0.3060
+backtrader_long_only,OK,17.0

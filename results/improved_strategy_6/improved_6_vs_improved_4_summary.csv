@@ -1,5 +1,5 @@
 label,name,backtrader_frequency,annualized_sharpe,final_equity,final_value,total_return,max_drawdown,stop_loss,take_profit
-improved_4_vector,improved_4_walkforward_stop_take_top10,,0.7968352955066104,2751550.864577062,,1.751550864577062,-0.0736329116122489,0.05,0.3
-improved_6_vector,improved_6_hzz_cross_sectional_trend_stop_take_top10,,0.8136121335447533,3053581.588959291,,2.053581588959291,-0.1115377828089483,0.05,0.3
-improved_4_backtrader,backtrader_daily_improved_4_walkforward_stop_take_top10,daily,0.985207712731644,,2816265.799261279,1.816265799261279,-0.0769380836861824,0.05,0.3
-improved_6_backtrader,backtrader_daily_improved_6_hzz_cross_sectional_trend_stop_take_top10,daily,0.8394551585669424,,3161380.879206555,2.161380879206555,-0.1131791336403883,0.05,0.3
+improved_4_vector,improved_4_walkforward_stop_take_top10,,1.1503776548860136,2751550.8645770648,,1.7515508645770643,-0.0736329116122489,0.05,0.3
+improved_6_vector,improved_6_hzz_cross_sectional_trend_stop_take_top10,,1.023499266354896,2040696.1246454015,,1.0406961246454016,-0.0803666130424761,0.05,0.3
+improved_4_backtrader,backtrader_daily_improved_4_walkforward_stop_take_top10,daily,1.3961265377349408,2816265.7992612594,2816265.799261279,1.8162657992612596,-0.0769380836861824,0.05,0.3
+improved_6_backtrader,backtrader_daily_improved_6_hzz_cross_sectional_trend_stop_take_top10,daily,1.0159030044991475,1927945.2510455456,3161380.879206555,0.9279452510455456,-0.1115314360708249,0.05,0.3

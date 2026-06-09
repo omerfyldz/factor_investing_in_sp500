@@ -36,6 +36,7 @@ IMPROVED_4_RESULTS_DIR = RESULTS_DIR / "improved_strategy_4"
 IMPROVED_5_RESULTS_DIR = RESULTS_DIR / "improved_strategy_5"
 IMPROVED_6_RESULTS_DIR = RESULTS_DIR / "improved_strategy_6"
 IMPROVED_7_RESULTS_DIR = RESULTS_DIR / "improved_strategy_7"
+IMPROVED_8_RESULTS_DIR = RESULTS_DIR / "improved_strategy_8"
 COMPARISON_RESULTS_DIR = RESULTS_DIR / "comparison"
 FIGURES_DIR = ROOT / "figures"
 DOCS_DIR = ROOT / "docs"
@@ -44,6 +45,7 @@ CONFIG_PATH = ROOT / "config" / "project_config.yaml"
 
 CUTOFF = pd.Timestamp("2026-05-31")
 START = pd.Timestamp("2006-06-01")
+EVALUATION_START = pd.Timestamp("2016-05-31")
 BENCHMARK = "^GSPC"
 INITIAL_CASH = 1_000_000.0
 CASH_PER_TRADE = 100_000.0
@@ -59,6 +61,7 @@ IMPROVED_4_STRATEGY_NAME = "improved_4_walkforward_stop_take_top10"
 IMPROVED_5_STRATEGY_NAME = "improved_5_regime_filtered_stop_take_top10"
 IMPROVED_6_STRATEGY_NAME = "improved_6_hzz_cross_sectional_trend_stop_take_top10"
 IMPROVED_7_STRATEGY_NAME = "improved_7_time_varying_cost_sensitivity"
+IMPROVED_8_STRATEGY_NAME = "improved_8_equal_weight_top20"
 HZZ_RATIO_COLS = [f"ma_ratio_{w}" for w in MA_WINDOWS]
 HZZ_BETA_COLS = [f"beta_ma_ratio_{w}" for w in MA_WINDOWS]
 HZZ_SMOOTH_WINDOW = 12
@@ -81,6 +84,13 @@ class StrategySpec:
     weight_shrink_to_equal: float = 0.50
     min_factor_weight: float = 0.10
     max_factor_weight: float = 0.45
+    # Position-sizing rule. "fixed_cash" preserves the project's original
+    # CASH_PER_TRADE behavior used by base and improveds 1-7. "percent_of_equity"
+    # sizes each new position as ``sizing_target_pct`` of current portfolio
+    # equity (1/N equal-weight a la DeMiguel-Garlappi-Uppal 2009). Used by
+    # improved 8 onward.
+    sizing_method: str = "fixed_cash"
+    sizing_target_pct: float = 0.10
     notes: str = ""
 
 
@@ -98,6 +108,7 @@ def ensure_dirs() -> None:
         IMPROVED_5_RESULTS_DIR,
         IMPROVED_6_RESULTS_DIR,
         IMPROVED_7_RESULTS_DIR,
+        IMPROVED_8_RESULTS_DIR,
         COMPARISON_RESULTS_DIR,
         FIGURES_DIR,
         DOCS_DIR,
@@ -714,6 +725,84 @@ def perf_metrics(returns: pd.Series, name: str, periods_per_year: int = 12, peri
     }
 
 
+def metrics_over_evaluation_window(
+    curve: pd.DataFrame,
+    name: str,
+    date_col: str = "month",
+    return_col: str | None = None,
+    period_label: str = "monthly",
+    periods_per_year: int = 12,
+    eval_start: pd.Timestamp | None = None,
+) -> dict[str, float | str]:
+    """Compute performance metrics over the project's common evaluation window.
+
+    All strategies in the project have different signal-availability lifecycles
+    (base trades from ~2010, improved 6 from ~2011, improved 1-5 from 2016-05
+    once trend_expanding_z is computable). Reporting Sharpe over the full
+    240-month panel includes pre-warmup zero-return months which dilute the
+    numerator more than the denominator, systematically understating the
+    Sharpe of strategies with longer warmups and making cross-strategy
+    comparisons unfair.
+
+    This helper filters the curve to ``>= EVALUATION_START``, derives the
+    return series, and computes Sharpe / drawdown / cumulative return /
+    final equity on the filtered subset. Final equity is restated as if
+    ``INITIAL_CASH`` were deployed at the evaluation start date so that
+    every strategy is compared from the same starting wealth.
+
+    Parameters
+    ----------
+    curve : DataFrame
+        Vector or Backtrader equity-curve dataframe with a date column and
+        either ``portfolio_return`` (vector) or ``return`` (Backtrader).
+    return_col : str, optional
+        Name of the return column. Auto-detected if None.
+    eval_start : Timestamp, optional
+        Override the module-level ``EVALUATION_START`` for sensitivity work.
+    """
+    start = eval_start if eval_start is not None else EVALUATION_START
+    if curve is None or curve.empty:
+        return {"name": name, "evaluation_start": start.isoformat(), "n_evaluation_periods": 0}
+    if return_col is None:
+        if "portfolio_return" in curve.columns:
+            return_col = "portfolio_return"
+        elif "return" in curve.columns:
+            return_col = "return"
+        else:
+            raise KeyError(f"No return column found in curve. Columns: {list(curve.columns)}")
+    c = curve.copy()
+    c[date_col] = pd.to_datetime(c[date_col])
+    c = c[c[date_col] >= start].sort_values(date_col)
+    if c.empty:
+        return {"name": name, "evaluation_start": start.isoformat(), "n_evaluation_periods": 0}
+    return_series = c[return_col].astype(float)
+    metrics = perf_metrics(return_series, name, periods_per_year=periods_per_year, period_label=period_label)
+    valid = return_series.replace([np.inf, -np.inf], np.nan).dropna()
+    if not valid.empty:
+        wealth = INITIAL_CASH * (1.0 + valid).cumprod()
+        metrics["final_equity"] = float(wealth.iloc[-1])
+        metrics["total_return"] = float(wealth.iloc[-1] / INITIAL_CASH - 1.0)
+        metrics["evaluation_start"] = start.isoformat()
+        metrics["n_evaluation_periods"] = int(len(valid))
+        metrics["first_evaluation_period"] = pd.Timestamp(c[date_col].iloc[0]).isoformat()
+        metrics["last_evaluation_period"] = pd.Timestamp(c[date_col].iloc[-1]).isoformat()
+    return metrics
+
+
+def filter_to_evaluation_window(
+    df: pd.DataFrame,
+    date_col: str = "month",
+    eval_start: pd.Timestamp | None = None,
+) -> pd.DataFrame:
+    """Return rows of df with ``date_col >= EVALUATION_START``."""
+    start = eval_start if eval_start is not None else EVALUATION_START
+    if df is None or df.empty:
+        return df
+    out = df.copy()
+    out[date_col] = pd.to_datetime(out[date_col])
+    return out[out[date_col] >= start].copy()
+
+
 def make_fmp_returns(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     print("Constructing factor-mimicking portfolios and IC diagnostics...")
     factor_map = {
@@ -994,8 +1083,22 @@ def is_assignment_scope_strategy(spec: StrategySpec) -> bool:
     )
 
 
+def position_size_for_spec(spec: StrategySpec, equity: float) -> float:
+    """Per-position dollar size implied by the spec's sizing rule."""
+    if spec.sizing_method == "percent_of_equity":
+        return float(spec.sizing_target_pct) * float(equity)
+    return CASH_PER_TRADE
+
+
 def select_positions_for_spec(g: pd.DataFrame, spec: StrategySpec, equity: float) -> pd.DataFrame:
-    max_positions = max(0, int(equity // CASH_PER_TRADE))
+    if spec.sizing_method == "percent_of_equity":
+        # Percent-of-equity sizing can always fit ``top_n`` positions because
+        # the per-position dollar size scales with current equity. Cash buffer
+        # is implicit at ``1 - top_n * sizing_target_pct`` (zero when fully
+        # equal-weighted at 1/top_n).
+        max_positions = spec.top_n
+    else:
+        max_positions = max(0, int(equity // CASH_PER_TRADE))
     n = min(spec.top_n, max_positions, len(g))
     if n <= 0:
         return g.iloc[0:0].copy()
@@ -1141,6 +1244,7 @@ def simulate_vector_strategy(
 
         comm_per_side, slip_per_side = cost_for_month(cost_schedule, month)
         round_trip_drag = 2.0 * (comm_per_side + slip_per_side)
+        per_position_dollars = position_size_for_spec(spec, equity)
 
         if selected.empty:
             pnl = 0.0
@@ -1150,14 +1254,14 @@ def simulate_vector_strategy(
             selected["gross_stock_return"] = stop_take_return(selected, spec.stop_loss, spec.take_profit)
             selected["cost_drag_per_holding"] = round_trip_drag
             selected["realized_stock_return"] = selected["gross_stock_return"] - round_trip_drag
-            selected["cash_weight"] = CASH_PER_TRADE / equity
-            pnl = CASH_PER_TRADE * selected["realized_stock_return"].sum()
+            selected["cash_weight"] = per_position_dollars / equity if equity > 0 else np.nan
+            pnl = per_position_dollars * selected["realized_stock_return"].sum()
             ret = pnl / equity if equity > 0 else np.nan
-            cost_dollars = CASH_PER_TRADE * round_trip_drag * len(selected)
+            cost_dollars = per_position_dollars * round_trip_drag * len(selected)
             selected["strategy"] = spec.name
             selected["strategy_notes"] = spec.notes
             selected["signal_month"] = month
-            selected["allocated_cash"] = CASH_PER_TRADE
+            selected["allocated_cash"] = per_position_dollars
             holdings.append(
                 selected[
                     [
@@ -1191,6 +1295,8 @@ def simulate_vector_strategy(
                 "commission_bps_per_side": comm_per_side * 10_000.0,
                 "slippage_bps_per_side": slip_per_side * 10_000.0,
                 "round_trip_bps": round_trip_drag * 10_000.0,
+                "per_position_dollars": per_position_dollars,
+                "sizing_method": spec.sizing_method,
             }
         )
 
@@ -1207,6 +1313,28 @@ class FixedCashSizer(bt.Sizer):
         if close_price <= 0:
             return 0
         size = int(self.params.cash_per_trade / close_price)
+        return max(size, 0)
+
+
+class EquityPercentSizer(bt.Sizer):
+    """Size each new position at ``target_pct`` of current portfolio value.
+
+    Equivalent to the vector simulator's ``sizing_method='percent_of_equity'``
+    rule. Used by improved 8 onward for true equal-weight (1/N) sizing in the
+    spirit of DeMiguel-Garlappi-Uppal (2009). Integer share rounding is used,
+    which can leave small unallocated cash; that is realistic and matches how
+    practitioners trade whole shares.
+    """
+
+    params = (("target_pct", 0.05),)
+
+    def _getsizing(self, comminfo, cash, data, isbuy):
+        close_price = data.close[0]
+        if close_price <= 0:
+            return 0
+        portfolio_value = self.broker.getvalue()
+        dollars_per_position = float(self.p.target_pct) * float(portfolio_value)
+        size = int(dollars_per_position / close_price)
         return max(size, 0)
 
 
@@ -1683,11 +1811,25 @@ def run_backtrader(
     save_csv(orders, prefix.with_name(prefix.name + "_orders.csv"))
     save_csv(trades, prefix.with_name(prefix.name + "_trades.csv"))
     save_csv(positions, prefix.with_name(prefix.name + "_positions.csv"))
-    metrics = pd.DataFrame([perf_metrics(equity["return"] if "return" in equity else pd.Series(dtype=float), f"backtrader_{name}")])
+    metrics_dict = (
+        metrics_over_evaluation_window(
+            equity,
+            f"backtrader_{name}",
+            date_col="month",
+            return_col="return",
+            period_label="monthly",
+            periods_per_year=12,
+        )
+        if not equity.empty
+        else {"name": f"backtrader_{name}"}
+    )
+    metrics = pd.DataFrame([metrics_dict])
     metrics["backtrader_frequency"] = "monthly"
     if not equity.empty:
-        metrics["final_value"] = equity["value"].iloc[-1]
-        metrics["total_return"] = equity["value"].iloc[-1] / INITIAL_CASH - 1
+        eval_equity = equity[pd.to_datetime(equity["month"]) >= EVALUATION_START]
+        metrics["final_value"] = (
+            float(eval_equity["value"].iloc[-1]) if not eval_equity.empty else np.nan
+        )
     save_csv(metrics, prefix.with_name(prefix.name + "_metrics.csv"))
     return {"equity": equity, "orders": orders, "trades": trades, "positions": positions, "metrics": metrics}
 
@@ -1726,6 +1868,8 @@ def run_backtrader_daily_stop_take(
     stop_loss: float | None,
     take_profit: float | None,
     output_dir: Path | None = None,
+    sizing_method: str = "fixed_cash",
+    sizing_target_pct: float = 0.10,
 ) -> dict[str, pd.DataFrame]:
     print(f"Running daily Backtrader native stop/limit strategy: {name}...")
     if stop_loss is None and take_profit is None:
@@ -1734,7 +1878,10 @@ def run_backtrader_daily_stop_take(
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(INITIAL_CASH)
     cerebro.broker.setcommission(commission=0.0)
-    cerebro.addsizer(FixedCashSizer, cash_per_trade=CASH_PER_TRADE)
+    if sizing_method == "percent_of_equity":
+        cerebro.addsizer(EquityPercentSizer, target_pct=sizing_target_pct)
+    else:
+        cerebro.addsizer(FixedCashSizer, cash_per_trade=CASH_PER_TRADE)
 
     idx_feed = make_daily_index_feed(index)
     cerebro.adddata(bt.feeds.PandasData(dataname=idx_feed), name="BENCHMARK")
@@ -1776,22 +1923,27 @@ def run_backtrader_daily_stop_take(
     save_csv(orders, prefix.with_name(prefix.name + "_orders.csv"))
     save_csv(trades, prefix.with_name(prefix.name + "_trades.csv"))
     save_csv(positions, prefix.with_name(prefix.name + "_positions.csv"))
-    metrics = pd.DataFrame(
-        [
-            perf_metrics(
-                equity["return"] if "return" in equity else pd.Series(dtype=float),
-                f"backtrader_daily_{name}",
-                periods_per_year=252,
-                period_label="daily",
-            )
-        ]
+    metrics_dict = (
+        metrics_over_evaluation_window(
+            equity,
+            f"backtrader_daily_{name}",
+            date_col="date",
+            return_col="return",
+            period_label="daily",
+            periods_per_year=252,
+        )
+        if not equity.empty
+        else {"name": f"backtrader_daily_{name}"}
     )
+    metrics = pd.DataFrame([metrics_dict])
     metrics["backtrader_frequency"] = "daily"
     metrics["stop_loss"] = stop_loss
     metrics["take_profit"] = take_profit
     if not equity.empty:
-        metrics["final_value"] = equity["value"].iloc[-1]
-        metrics["total_return"] = equity["value"].iloc[-1] / INITIAL_CASH - 1
+        eval_equity = equity[pd.to_datetime(equity["date"]) >= EVALUATION_START]
+        metrics["final_value"] = (
+            float(eval_equity["value"].iloc[-1]) if not eval_equity.empty else np.nan
+        )
     save_csv(metrics, prefix.with_name(prefix.name + "_metrics.csv"))
     return {"equity": equity, "orders": orders, "trades": trades, "positions": positions, "metrics": metrics}
 
@@ -1865,11 +2017,16 @@ def run_strategy_experiments(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.Data
     all_holdings = pd.concat(holdings, ignore_index=True) if holdings else pd.DataFrame()
     metrics = pd.DataFrame(
         [
-            perf_metrics(g.sort_values("month")["portfolio_return"], name)
+            metrics_over_evaluation_window(
+                g.sort_values("month"),
+                name,
+                date_col="month",
+                return_col="portfolio_return",
+                period_label="monthly",
+                periods_per_year=12,
+            )
             | {
-                "final_equity": g.sort_values("month")["equity"].iloc[-1],
-                "total_return": g.sort_values("month")["equity"].iloc[-1] / INITIAL_CASH - 1,
-                "avg_positions": g["n_positions"].mean(),
+                "avg_positions": filter_to_evaluation_window(g, "month")["n_positions"].mean(),
             }
             for name, g in all_curves.groupby("strategy", sort=True)
         ]
@@ -1959,7 +2116,9 @@ def monte_carlo_random_portfolios(
     print(f"Running Monte Carlo robustness test for {base_spec.name} with {n_sims} random portfolios...")
     rng = np.random.default_rng(RNG_SEED)
     base_curve, _ = simulate_vector_strategy(panel, base_spec)
-    base_sharpe = perf_metrics(base_curve["portfolio_return"], base_spec.name)["annualized_sharpe"]
+    base_sharpe = metrics_over_evaluation_window(
+        base_curve, base_spec.name, date_col="month", return_col="portfolio_return"
+    )["annualized_sharpe"]
     months = sorted(panel["month"].dropna().unique())
     sim_rows: list[dict[str, Any]] = []
 
@@ -1969,33 +2128,47 @@ def monte_carlo_random_portfolios(
     }
     for sim in range(n_sims):
         equity = INITIAL_CASH
-        returns: list[float] = []
+        rows_this_sim: list[dict[str, Any]] = []
         for month in months:
             g = eligible_by_month.get(month)
             if g is None or g.empty:
-                returns.append(0.0)
+                rows_this_sim.append({"month": month, "portfolio_return": 0.0})
                 continue
             if base_spec.regime_filter and not month_regime_is_on(g):
-                returns.append(0.0)
+                rows_this_sim.append({"month": month, "portfolio_return": 0.0})
                 continue
-            max_positions = max(0, int(equity // CASH_PER_TRADE))
+            if base_spec.sizing_method == "percent_of_equity":
+                max_positions = base_spec.top_n
+            else:
+                max_positions = max(0, int(equity // CASH_PER_TRADE))
             n = min(base_spec.top_n, max_positions, len(g))
             if n == 0:
-                returns.append(0.0)
+                rows_this_sim.append({"month": month, "portfolio_return": 0.0})
                 continue
             picks = rng.choice(len(g), size=n, replace=False)
             selected = g.iloc[picks].copy()
             realized = stop_take_return(selected, base_spec.stop_loss, base_spec.take_profit)
-            pnl = CASH_PER_TRADE * realized.sum()
+            per_position_dollars = position_size_for_spec(base_spec, equity)
+            pnl = per_position_dollars * realized.sum()
             ret = pnl / equity if equity else 0.0
             equity += pnl
-            returns.append(ret)
-        metrics = perf_metrics(pd.Series(returns), f"random_{sim}")
-        sim_rows.append({"simulation": sim, "annualized_sharpe": metrics.get("annualized_sharpe", np.nan), "final_equity": equity})
+            rows_this_sim.append({"month": month, "portfolio_return": ret})
+        sim_curve = pd.DataFrame(rows_this_sim)
+        eval_metrics = metrics_over_evaluation_window(
+            sim_curve, f"random_{sim}", date_col="month", return_col="portfolio_return"
+        )
+        sim_rows.append(
+            {
+                "simulation": sim,
+                "annualized_sharpe": eval_metrics.get("annualized_sharpe", np.nan),
+                "final_equity": eval_metrics.get("final_equity", np.nan),
+            }
+        )
 
     out = pd.DataFrame(sim_rows)
     out["strategy_sharpe"] = base_sharpe
     out["p_value"] = (out["annualized_sharpe"] >= base_sharpe).mean()
+    out["evaluation_start"] = EVALUATION_START.isoformat()
     if output_name is None:
         output_name = "monte_carlo_random_portfolios.csv"
     save_csv(out, (output_dir or RESULTS_DIR) / output_name)
@@ -2010,6 +2183,7 @@ def strategy_benchmark_comparison(strategy_curves: pd.DataFrame, index_monthly: 
     for name, g in strategy_curves.groupby("strategy", sort=True):
         g = g.sort_values("month")[["month", "portfolio_return"]]
         merged = g.merge(bench[["month", "benchmark_return"]], on="month", how="inner").dropna()
+        merged = filter_to_evaluation_window(merged, "month")
         if len(merged) < 24:
             continue
         excess = merged["portfolio_return"] - merged["benchmark_return"]
@@ -2051,7 +2225,8 @@ def block_bootstrap(
 ) -> pd.DataFrame:
     print(f"Running block bootstrap robustness test -> {output_name}...")
     rng = np.random.default_rng(RNG_SEED + 1)
-    r = curve.sort_values("month")["portfolio_return"].dropna().to_numpy()
+    curve_eval = filter_to_evaluation_window(curve, "month")
+    r = curve_eval.sort_values("month")["portfolio_return"].dropna().to_numpy()
     rows = []
     if len(r) < block_size:
         return pd.DataFrame()
@@ -2268,14 +2443,16 @@ The project is stronger after separating the literal base from sequential improv
 
 
 def walk_forward_summary(strategy_metrics: pd.DataFrame, curves: pd.DataFrame) -> pd.DataFrame:
-    """Simple walk-forward validation across the staged strategy ladder."""
+    """Walk-forward validation across the staged strategy ladder, restricted to the
+    common evaluation window starting at EVALUATION_START."""
     print("Computing walk-forward validation summary...")
     train_end = pd.Timestamp("2020-12-31")
     rows = []
     for name, g in curves.groupby("strategy", sort=True):
         g = g.sort_values("month")
-        train = g[g["month"] <= train_end]
-        test = g[g["month"] > train_end]
+        g_eval = filter_to_evaluation_window(g, "month")
+        train = g_eval[g_eval["month"] <= train_end]
+        test = g_eval[g_eval["month"] > train_end]
         if train.empty or test.empty:
             continue
         train_m = perf_metrics(train["portfolio_return"], f"{name}_train")
@@ -2283,6 +2460,7 @@ def walk_forward_summary(strategy_metrics: pd.DataFrame, curves: pd.DataFrame) -
         rows.append(
             {
                 "strategy": name,
+                "evaluation_start": EVALUATION_START.isoformat(),
                 "train_sharpe_to_2020": train_m.get("annualized_sharpe", np.nan),
                 "test_sharpe_2021_2026": test_m.get("annualized_sharpe", np.nan),
                 "test_cumulative_return_2021_2026": test_m.get("cumulative_return", np.nan),

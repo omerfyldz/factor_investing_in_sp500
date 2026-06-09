@@ -26,18 +26,18 @@ Improved 6 is a focused replacement of the trend signal. It does not replace imp
 
 ## Results
 
-- Vector Sharpe: `0.8136`.
-- Vector final equity: `$3,053,582`.
-- Vector max drawdown: `-11.15%`.
+- Vector Sharpe: `1.0235`.
+- Vector final equity: `$2,040,696`.
+- Vector max drawdown: `-8.04%`.
 - Backtrader final value: `$3,161,381`.
-- Backtrader Sharpe: `0.8395`.
-- Backtrader max drawdown: `-11.32%`.
-- Monte Carlo p-value: `0.0390`.
+- Backtrader Sharpe: `1.0159`.
+- Backtrader max drawdown: `-11.15%`.
+- Monte Carlo p-value: `0.2900`.
 
 ## Comparison To Improved 4
 
-- Improved 4 vector Sharpe: `0.7968`; improved 6 vector Sharpe: `0.8136`.
-- Improved 4 Backtrader Sharpe: `0.9852`; improved 6 Backtrader Sharpe: `0.8395`.
+- Improved 4 vector Sharpe: `1.1504`; improved 6 vector Sharpe: `1.0235`.
+- Improved 4 Backtrader Sharpe: `1.3961`; improved 6 Backtrader Sharpe: `1.0159`.
 
 ## Warning
 

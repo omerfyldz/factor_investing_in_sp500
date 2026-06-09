@@ -2,5 +2,5 @@ check,status,detail
 selected_stop_loss,OK,0.0500
 selected_take_profit,OK,0.3000
 selection_uses_training_only,OK,2020-12-31
-monte_carlo_p_value,OK,0.0560
+monte_carlo_p_value,OK,0.0880
 backtrader_long_only,OK,28.0

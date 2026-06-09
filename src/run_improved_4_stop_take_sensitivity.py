@@ -38,12 +38,16 @@ def make_stop_take_spec(stop_loss: float, take_profit: float, name: str | None =
 
 def curve_metrics(curve: pd.DataFrame, name: str, mask: pd.Series) -> dict[str, float | str]:
     sample = curve.loc[mask].sort_values("month")
-    metrics = core.perf_metrics(sample["portfolio_return"], name)
     if sample.empty:
-        return metrics
-    metrics["final_equity"] = sample["equity"].iloc[-1]
-    metrics["total_return"] = sample["equity"].iloc[-1] / sample["prev_equity"].iloc[0] - 1
-    metrics["avg_positions"] = sample["n_positions"].mean()
+        return {"name": name}
+    # Always evaluate over the common evaluation window so train/test/full comparisons
+    # are consistent with the rest of the project.
+    metrics = core.metrics_over_evaluation_window(
+        sample, name, date_col="month", return_col="portfolio_return"
+    )
+    eval_sample = core.filter_to_evaluation_window(sample, "month")
+    if not eval_sample.empty:
+        metrics["avg_positions"] = float(eval_sample["n_positions"].mean())
     return metrics
 
 
@@ -246,12 +250,13 @@ def main() -> None:
     curve, holdings = core.simulate_vector_strategy(panel, selected_spec)
     core.save_csv(curve, core.IMPROVED_4_RESULTS_DIR / "vector_equity_curve.csv")
     core.save_csv(holdings, core.IMPROVED_4_RESULTS_DIR / "vector_holdings.csv")
-    metrics = core.perf_metrics(curve["portfolio_return"], selected_spec.name)
+    metrics = core.metrics_over_evaluation_window(
+        curve, selected_spec.name, date_col="month", return_col="portfolio_return"
+    )
+    eval_curve = core.filter_to_evaluation_window(curve, "month")
     metrics.update(
         {
-            "final_equity": curve["equity"].iloc[-1],
-            "total_return": curve["equity"].iloc[-1] / core.INITIAL_CASH - 1,
-            "avg_positions": curve["n_positions"].mean(),
+            "avg_positions": float(eval_curve["n_positions"].mean()) if not eval_curve.empty else float("nan"),
             "stop_loss": selected_spec.stop_loss,
             "take_profit": selected_spec.take_profit,
             "selection_rule": "train_sharpe_minus_drawdown_and_isolated_peak_penalty",

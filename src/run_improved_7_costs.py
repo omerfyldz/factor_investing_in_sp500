@@ -95,28 +95,32 @@ def run_grid(
             curves.append(tagged)
             by_pair[(strategy_label, scenario)] = curve
 
-            metrics = core.perf_metrics(curve["portfolio_return"], f"{strategy_label}_{scenario}")
-            final_equity = float(curve["equity"].iloc[-1]) if not curve.empty else float("nan")
+            metrics = core.metrics_over_evaluation_window(
+                curve, f"{strategy_label}_{scenario}",
+                date_col="month", return_col="portfolio_return",
+            )
             zero_curve = by_pair.get((strategy_label, "zero"))
             sharpe_drop = (
                 float("nan")
                 if scenario == "zero" or zero_curve is None
-                else core.perf_metrics(zero_curve["portfolio_return"], "zero")["annualized_sharpe"]
-                - metrics["annualized_sharpe"]
+                else core.metrics_over_evaluation_window(
+                    zero_curve, "zero", date_col="month", return_col="portfolio_return"
+                )["annualized_sharpe"] - metrics["annualized_sharpe"]
             )
+            eval_curve = core.filter_to_evaluation_window(curve, "month")
             grid_rows.append(
                 {
                     "strategy_label": strategy_label,
                     "strategy_name": spec.name,
                     "cost_scenario": scenario,
                     "annualized_sharpe": metrics["annualized_sharpe"],
-                    "annualized_return_approx": metrics["annualized_return_approx"],
-                    "annualized_volatility": metrics["annualized_volatility"],
-                    "max_drawdown": metrics["max_drawdown"],
-                    "cumulative_return": metrics["cumulative_return"],
-                    "final_equity": final_equity,
-                    "total_cost_dollars": float(curve["cost_dollars"].sum()),
-                    "avg_round_trip_bps": float(curve["round_trip_bps"].replace(0, np.nan).mean()),
+                    "annualized_return_approx": metrics.get("annualized_return_approx", float("nan")),
+                    "annualized_volatility": metrics.get("annualized_volatility", float("nan")),
+                    "max_drawdown": metrics.get("max_drawdown", float("nan")),
+                    "cumulative_return": metrics.get("cumulative_return", float("nan")),
+                    "final_equity": metrics.get("final_equity", float("nan")),
+                    "total_cost_dollars": float(eval_curve["cost_dollars"].sum()) if not eval_curve.empty else float("nan"),
+                    "avg_round_trip_bps": float(eval_curve["round_trip_bps"].replace(0, np.nan).mean()) if not eval_curve.empty else float("nan"),
                     "sharpe_drop_vs_zero": sharpe_drop,
                 }
             )

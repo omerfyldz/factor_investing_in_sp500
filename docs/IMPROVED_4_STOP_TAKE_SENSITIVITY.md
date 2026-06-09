@@ -16,17 +16,17 @@ Improved 4 is a focused risk-exit parameter experiment. It does not replace the 
 
 - Stop-loss: `5.0%`
 - Take-profit: `30.0%`
-- Train Sharpe: `0.6991`
+- Train Sharpe: `1.2856`
 - Train max drawdown: `-7.36%`
 - Test Sharpe: `1.0221`
 - Test max drawdown: `-6.02%`
 - Backtrader final value: `$2,816,266`
-- Backtrader Sharpe: `0.9852`
+- Backtrader Sharpe: `1.3961`
 - Backtrader max drawdown: `-7.69%`
 
 ## Comparison To Improved 2 Original 10%/20%
 
-- Original train Sharpe: `0.6269`
+- Original train Sharpe: `1.1421`
 - Original train max drawdown: `-13.03%`
 - Original test Sharpe: `0.9588`
 - Original test max drawdown: `-5.75%`

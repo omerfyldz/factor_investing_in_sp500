@@ -24,8 +24,8 @@ The base strategy follows the project formula exactly, except that `^GSPC` repla
 
 The base strategy worked in absolute terms, but it should still be judged cautiously:
 
-- Base strategy Sharpe: `1.1317`
-- Base Monte Carlo p-value: `0.0000`
+- Base strategy Sharpe: `1.1969`
+- Base Monte Carlo p-value: `0.0130`
 
 Interpretation: in the current cleaned run, no random top-10 S&P 500 portfolio in 1,000 simulations matched the base Sharpe. This supports the factor-selection result under the project's Monte Carlo design, but it is not a guarantee of real-money robustness.
 
@@ -48,10 +48,10 @@ The current executable strategy ladder is intentionally small and sequential:
 
 | name | assignment_scope | annualized_sharpe | final_equity | max_drawdown | avg_positions | annualized_alpha_approx | beta_to_sp500 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| base_equal_top10 | True | 1.1317 | 5319946.9549 | -0.1080 | 7.9958 | 0.0913 | -0.0414 |
-| improved_1_expanding_trend_top10 | False | 0.8184 | 3510333.0263 | -0.1578 | 4.2500 | 0.0692 | -0.0273 |
-| improved_2_expanding_trend_stop_take_top10 | False | 0.7310 | 2721442.6689 | -0.1303 | 4.2500 | 0.0560 | -0.0301 |
-| improved_3_dynamic_ic_weights_stop_take_top10 | False | 0.6788 | 2635221.3785 | -0.1413 | 4.2500 | 0.0543 | -0.0273 |
+| base_equal_top10 | True | 1.1969 | 2032039.2891 | -0.0726 | 9.9174 | 0.0791 | -0.0482 |
+| improved_1_expanding_trend_top10 | False | 1.1834 | 3510333.0263 | -0.1578 | 8.4298 | 0.1416 | -0.0733 |
+| improved_2_expanding_trend_stop_take_top10 | False | 1.0507 | 2721442.6689 | -0.1303 | 8.4298 | 0.1152 | -0.0750 |
+| improved_3_dynamic_ic_weights_stop_take_top10 | False | 0.9727 | 2635221.3785 | -0.1413 | 8.4298 | 0.1116 | -0.0690 |
 
 ## Variant Notes
 
@@ -75,14 +75,14 @@ The base strategy is the literal project-style implementation:
 - signals at month t trade month t+1;
 - Backtrader base uses market orders, fixed cash sizing, zero commission, and no stop-loss/take-profit.
 
-Base vector Sharpe: `1.1317`.
+Base vector Sharpe: `1.1969`.
 
 ### 2. Improved Strategy 1: Expanding Trend Regression
 
 Improved 1 keeps every base choice fixed except the trend-regression estimation window. Instead of using one full-sample trend regression, it estimates an expanding `^GSPC` regression for each signal month using only index observations available before that month. This is a scientific improvement because it reduces look-ahead bias, even if it may or may not improve raw performance.
 
-- Base vector Sharpe: `1.1317`
-- Improved 1 vector Sharpe: `0.8184`
+- Base vector Sharpe: `1.1969`
+- Improved 1 vector Sharpe: `1.1834`
 
 ### 3. Improved Strategy 2: Stop-Loss And Take-Profit Layer
 
@@ -94,7 +94,7 @@ Improved 2 builds directly on improved 1 and adds risk exits:
 - vector results use a monthly open/high/low/close approximation with stop priority if stop and take-profit are both touched in the same month;
 - Backtrader results use daily adjusted OHLC bars, explicit market orders for entries/rebalances, and native `bt.Order.Stop` / `bt.Order.Limit` protective exits.
 
-Improved 2 vector Sharpe: `0.7310`.
+Improved 2 vector Sharpe: `1.0507`.
 
 Order-model note: the Backtrader stop/take engine now uses native `bt.Order.Stop` and `bt.Order.Limit` protective orders. Rebalance exits cancel live protective orders before submitting market exits so stale stop/limit orders cannot create accidental shorts. Saved Backtrader metrics should be regenerated before final interpretation under this execution model.
 
@@ -110,8 +110,8 @@ Improved 3 builds directly on improved 2 and changes only the factor weighting r
 
 This is closer to a real-world process because the weights are based only on information available before the signal month and are constrained to avoid single-factor overfitting.
 
-- Improved 2 vector Sharpe: `0.7310`
-- Improved 3 vector Sharpe: `0.6788`
+- Improved 2 vector Sharpe: `1.0507`
+- Improved 3 vector Sharpe: `0.9727`
 
 ### 5. Removed Or Deferred Ideas
 
@@ -125,26 +125,26 @@ Every future improvement should build on the latest accepted improved strategy a
 
 Monte Carlo:
 
-- Base strategy p-value: `0.0000`
-- Improved 3 strategy p-value: `0.1710`
+- Base strategy p-value: `0.0130`
+- Improved 3 strategy p-value: `0.1570`
 
 Walk-forward:
 
 | strategy | train_sharpe_to_2020 | test_sharpe_2021_2026 | test_cumulative_return_2021_2026 | test_max_drawdown_2021_2026 | selected_by_train |
 | --- | --- | --- | --- | --- | --- |
-| base_equal_top10 | 1.1072 | 1.3003 | 0.4646 | -0.0361 | True |
-| improved_2_expanding_trend_stop_take_top10 | 0.6269 | 0.9588 | 0.5854 | -0.0575 | False |
-| improved_1_expanding_trend_top10 | 0.5704 | 1.3359 | 1.0312 | -0.0524 | False |
-| improved_3_dynamic_ic_weights_stop_take_top10 | 0.5412 | 0.9842 | 0.5743 | -0.1047 | False |
+| improved_2_expanding_trend_stop_take_top10 | 1.1421 | 0.9588 | 0.5854 | -0.0575 | True |
+| base_equal_top10 | 1.0954 | 1.3003 | 0.4646 | -0.0361 | False |
+| improved_1_expanding_trend_top10 | 1.0324 | 1.3359 | 1.0312 | -0.0524 | False |
+| improved_3_dynamic_ic_weights_stop_take_top10 | 0.9766 | 0.9842 | 0.5743 | -0.1047 | False |
 
 Benchmark comparison:
 
 | strategy | annualized_excess_return_approx | excess_t_stat | excess_p_value | annualized_alpha_approx | alpha_t_stat | alpha_p_value | beta_to_sp500 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| base_equal_top10 | -0.0149 | -0.3742 | 0.7086 | 0.0913 | 4.7023 | 0.0000 | -0.0414 |
-| improved_1_expanding_trend_top10 | -0.0355 | -0.8933 | 0.3726 | 0.0692 | 3.5426 | 0.0004 | -0.0273 |
-| improved_2_expanding_trend_stop_take_top10 | -0.0489 | -1.2577 | 0.2097 | 0.0560 | 3.3023 | 0.0010 | -0.0301 |
-| improved_3_dynamic_ic_weights_stop_take_top10 | -0.0503 | -1.2852 | 0.2000 | 0.0543 | 2.9436 | 0.0032 | -0.0273 |
+| improved_1_expanding_trend_top10 | -0.0101 | -0.1616 | 0.8719 | 0.1416 | 3.9605 | 0.0001 | -0.0733 |
+| improved_2_expanding_trend_stop_take_top10 | -0.0367 | -0.6081 | 0.5443 | 0.1152 | 3.6526 | 0.0003 | -0.0750 |
+| improved_3_dynamic_ic_weights_stop_take_top10 | -0.0395 | -0.6468 | 0.5190 | 0.1116 | 3.1078 | 0.0019 | -0.0690 |
+| base_equal_top10 | -0.0690 | -1.2803 | 0.2029 | 0.0791 | 4.4267 | 0.0000 | -0.0482 |
 
 ## Current Judgment
 
@@ -194,9 +194,9 @@ The warning is important: improved 4 is a robustness/sensitivity experiment, not
 Improved 5 was added after improved 4 as a focused market-regime filter test. It keeps improved 4's factor signals, top-10 construction, 5% stop-loss, and 30% take-profit, then adds one pre-specified rule: trade only when `^GSPC` is above its 10-month moving average.
 
 - No regime-window optimization was performed.
-- Vector Sharpe: `0.6525`.
+- Vector Sharpe: `0.9336`.
 - Vector max drawdown: `-11.19%`.
-- Backtrader Sharpe: `0.7493`.
+- Backtrader Sharpe: `1.0609`.
 - Backtrader max drawdown: `-10.64%`.
 
 The warning is important: this is a market-timing overlay and must be treated skeptically. It is acceptable only because it changes one pre-specified design dimension and is stored separately from improved 4.
@@ -205,10 +205,10 @@ The warning is important: this is a market-timing overlay and must be treated sk
 
 Improved 6 was added after improved 5 as a focused trend-signal replacement. It keeps improved 4's composite-weight design, top-10 construction, 5% stop-loss, and 30% take-profit, then changes exactly one thing: the trend column becomes `trend_hzz_z`, a Han, Zhou, Zhu (2016) cross-sectional trend factor estimated from monthly OLS regressions of next-month returns on 11 normalized moving-average ratios across the eligible cross-section, with a strict trailing 12-month average of past betas.
 
-- Vector Sharpe: `0.8136`.
-- Vector max drawdown: `-11.15%`.
-- Backtrader Sharpe: `0.8395`.
-- Backtrader max drawdown: `-11.32%`.
+- Vector Sharpe: `1.0235`.
+- Vector max drawdown: `-8.04%`.
+- Backtrader Sharpe: `1.0159`.
+- Backtrader max drawdown: `-11.15%`.
 
 Improved 6 is the first variant whose trend signal is built from the cross-section of stocks rather than from the index. It exists to test the paper's actual methodology against the assignment-prescribed index regression while keeping all other improved 4 design choices fixed.
 
@@ -221,15 +221,35 @@ J.P. Morgan execution research, and NYSE TAQ literature). Three scenarios are
 reported: zero (baseline), central (typical institutional execution), and
 pessimistic (2x central).
 
-- Improved 4 vector Sharpe -- zero: `0.7968`,
-  central: `0.7757`,
-  pessimistic: `0.7544`.
-- Improved 6 vector Sharpe -- zero: `0.8136`,
-  central: `0.7567`,
-  pessimistic: `0.6976`.
+- Improved 4 vector Sharpe -- zero: `1.1504`,
+  central: `1.1182`,
+  pessimistic: `1.0861`.
+- Improved 6 vector Sharpe -- zero: `1.0235`,
+  central: `0.9855`,
+  pessimistic: `0.9477`.
 
 Both finalists survive central-case costs with positive Sharpe. Improved 6
 pays more friction because it holds more concurrent positions; improved 4's
 lower turnover is a structural cost-robustness advantage. See
 `docs/IMPROVED_7_COSTS.md` for the full schedule, sources, and methodology.
+
+## Improved 8 Equal-Weight Top 20
+
+Improved 8 changes two mechanically-coupled design dimensions on top of improved 4:
+top-N moves from 10 to 20, and position sizing moves from fixed `$100,000`
+per trade to equal-weight `5.00%` of current portfolio equity per position.
+The two changes are treated as one improvement because fixed-dollar sizing is
+mechanically incompatible with meaningful top-N expansion (`$1M` of capital
+cannot fund `20 x $100k = $2M`). Justification draws on DeMiguel-Garlappi-Uppal
+(2009) for the 1/N choice and Plyakha-Uppal-Vilkov (2014) for the equal-weight
+concentrated portfolio rationale; the industry analog is Invesco's RSP equal-
+weight S&P 500 ETF. Foundation is improved 4 (the cost-robust winner from
+improved 7).
+
+- Vector Sharpe: `1.0333`.
+- Vector max drawdown: `-10.94%`.
+- Backtrader Sharpe: `1.1098`.
+- Backtrader max drawdown: `-11.90%`.
+
+See `docs/IMPROVED_8_TOP_N_SIZING.md` for full methodology and references.
 

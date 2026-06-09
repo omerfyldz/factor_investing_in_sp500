@@ -291,14 +291,13 @@ def main() -> None:
     if not holdings.empty:
         core.save_csv(holdings, core.IMPROVED_6_RESULTS_DIR / "vector_holdings.csv")
 
-    metrics = core.perf_metrics(curve["portfolio_return"], spec.name)
+    metrics = core.metrics_over_evaluation_window(
+        curve, spec.name, date_col="month", return_col="portfolio_return"
+    )
+    eval_curve = core.filter_to_evaluation_window(curve, "month")
     metrics.update(
         {
-            "final_equity": curve["equity"].iloc[-1] if not curve.empty else float("nan"),
-            "total_return": (curve["equity"].iloc[-1] / core.INITIAL_CASH - 1)
-            if not curve.empty
-            else float("nan"),
-            "avg_positions": curve["n_positions"].mean() if not curve.empty else float("nan"),
+            "avg_positions": float(eval_curve["n_positions"].mean()) if not eval_curve.empty else float("nan"),
             "stop_loss": spec.stop_loss,
             "take_profit": spec.take_profit,
             "trend_col": spec.trend_col,

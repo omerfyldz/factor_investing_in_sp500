@@ -73,15 +73,15 @@ alongside the zero baseline is the conservative academic convention.
 
 | Strategy | Zero | Central | Pessimistic | Drop @ Central | Drop @ Pessimistic |
 |---|---:|---:|---:|---:|---:|
-| improved_4 | 0.7968 | 0.7757 | 0.7544 | 0.0211 | 0.0424 |
-| improved_6 | 0.8136 | 0.7567 | 0.6976 | 0.0569 | 0.1161 |
+| improved_4 | 1.1504 | 1.1182 | 1.0861 | 0.0321 | 0.0643 |
+| improved_6 | 1.0235 | 0.9855 | 0.9477 | 0.0380 | 0.0758 |
 
 ### Final equity and total cost paid (central scenario)
 
 | Strategy | Zero ($) | Central ($) | Pessimistic ($) | Total cost @ Central ($) |
 |---|---:|---:|---:|---:|
 | improved_4 | 2,751,551 | 2,705,011 | 2,658,471 | 46,540 |
-| improved_6 | 3,053,582 | 2,925,061 | 2,785,534 | 117,840 |
+| improved_6 | 2,040,696 | 2,053,680 | 2,076,811 | 56,480 |
 
 The `Total cost @ Central` column is the cumulative dollar friction paid over
 ~20 years of trading at the central per-year rate. Improved 6 pays more

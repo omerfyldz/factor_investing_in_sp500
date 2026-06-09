@@ -226,12 +226,13 @@ def main() -> None:
     curve, holdings = core.simulate_vector_strategy(panel, spec)
     core.save_csv(curve, core.IMPROVED_5_RESULTS_DIR / "vector_equity_curve.csv")
     core.save_csv(holdings, core.IMPROVED_5_RESULTS_DIR / "vector_holdings.csv")
-    metrics = core.perf_metrics(curve["portfolio_return"], spec.name)
+    metrics = core.metrics_over_evaluation_window(
+        curve, spec.name, date_col="month", return_col="portfolio_return"
+    )
+    eval_curve = core.filter_to_evaluation_window(curve, "month")
     metrics.update(
         {
-            "final_equity": curve["equity"].iloc[-1],
-            "total_return": curve["equity"].iloc[-1] / core.INITIAL_CASH - 1,
-            "avg_positions": curve["n_positions"].mean(),
+            "avg_positions": float(eval_curve["n_positions"].mean()) if not eval_curve.empty else float("nan"),
             "regime_filter": spec.regime_filter,
             "stop_loss": spec.stop_loss,
             "take_profit": spec.take_profit,

@@ -28,38 +28,38 @@ The processed panel is monthly. Stock returns use adjusted prices. The final obs
 
 Base strategy:
 
-- final equity: `$5,319,947`;
-- total return: `431.99%`;
-- annualized Sharpe: `1.13`;
-- max drawdown: `-10.80%`.
+- final equity: `$2,032,039`;
+- total return: `103.20%`;
+- annualized Sharpe: `1.20`;
+- max drawdown: `-7.26%`.
 
 Improved 3 vector strategy:
 
 - strategy: `improved_3_dynamic_ic_weights_stop_take_top10`;
 - final equity: `$2,635,221`;
 - total return: `163.52%`;
-- annualized Sharpe: `0.68`;
+- annualized Sharpe: `0.97`;
 - max drawdown: `-14.13%`.
 
 Backtrader base strategy:
 
 - final value: `$5,778,291`;
-- total return: `477.83%`;
-- annualized Sharpe: `1.20`;
-- max drawdown: `-10.42%`.
+- total return: `123.20%`;
+- annualized Sharpe: `1.36`;
+- max drawdown: `-6.80%`.
 
 Backtrader improved 3 strategy:
 
 - final value: `$2,680,533`;
 - total return: `168.05%`;
-- annualized Sharpe: `0.85`;
+- annualized Sharpe: `1.21`;
 - max drawdown: `-15.51%`.
 
-Monte Carlo p-value for the base Sharpe: `0.0000`.
+Monte Carlo p-value for the base Sharpe: `0.0130`.
 
-Monte Carlo p-value for the improved 3 Sharpe: `0.1710`.
+Monte Carlo p-value for the improved 3 Sharpe: `0.1570`.
 
-Improved 3 annualized alpha versus `^GSPC`: `5.43%` with alpha t-stat `2.94`.
+Improved 3 annualized alpha versus `^GSPC`: `11.16%` with alpha t-stat `3.11`.
 
 ## What We Tried
 

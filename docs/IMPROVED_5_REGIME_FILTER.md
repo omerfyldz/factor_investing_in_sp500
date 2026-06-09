@@ -14,21 +14,21 @@ Improved 5 is a focused market-regime experiment. It does not replace improved 4
 
 ## Results
 
-- Vector Sharpe: `0.6525`.
+- Vector Sharpe: `0.9336`.
 - Vector final equity: `$2,148,104`.
 - Vector max drawdown: `-11.19%`.
 - Backtrader final value: `$2,109,769`.
-- Backtrader Sharpe: `0.7493`.
+- Backtrader Sharpe: `1.0609`.
 - Backtrader max drawdown: `-10.64%`.
-- Monte Carlo p-value: `0.6030`.
+- Monte Carlo p-value: `0.0990`.
 
 ## Decision
 
 Improved 5 is not accepted as a performance improvement over improved 4.
 
-- Improved 4 vector Sharpe: `0.7968`; improved 5 vector Sharpe: `0.6525`.
+- Improved 4 vector Sharpe: `1.1504`; improved 5 vector Sharpe: `0.9336`.
 - Improved 4 vector max drawdown: `-7.36%`; improved 5 vector max drawdown: `-11.19%`.
-- Improved 4 Backtrader Sharpe: `0.9852`; improved 5 Backtrader Sharpe: `0.7493`.
+- Improved 4 Backtrader Sharpe: `1.3961`; improved 5 Backtrader Sharpe: `1.0609`.
 - Improved 4 Backtrader max drawdown: `-7.69%`; improved 5 Backtrader max drawdown: `-10.64%`.
 
 The filter likely removed too much exposure and missed rebound months. This is a useful failed experiment because it shows that a simple index cash filter is not automatically better once daily stop-loss/take-profit risk control is already present.
