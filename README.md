@@ -18,13 +18,14 @@ The project is written so that someone new to factor investing can read the READ
 8. [Evaluation Methodology — Common Window Fix](#8-evaluation-methodology--common-window-fix)
 9. [Results](#9-results)
 10. [Robustness Analysis](#10-robustness-analysis)
-11. [Honest Limitations](#12-honest-limitations)
-12. [Reproducing This Project](#13-reproducing-this-project)
-13. [Source Code Map](#14-source-code-map)
-14. [Output Layout](#15-output-layout)
-15. [Future Work](#16-future-work)
-16. [References](#17-references)
-17. [Glossary](#18-glossary)
+11. [Improved 8 — Equal-Weight Top-20 (1/N Sizing)](#11-improved-8--equal-weight-top-20-1n-sizing)
+12. [Honest Limitations](#12-honest-limitations)
+13. [Reproducing This Project](#13-reproducing-this-project)
+14. [Source Code Map](#14-source-code-map)
+15. [Output Layout](#15-output-layout)
+16. [Future Work](#16-future-work)
+17. [References](#17-references)
+18. [Glossary](#18-glossary)
 
 ---
 
@@ -442,7 +443,7 @@ See `results/robustness/` and `docs/MULTI_COMPARISON_TEST.md` for the exact outp
 
 ---
 
-## 12. Improved 8 — Equal-Weight Top-20 (1/N Sizing)
+## 11. Improved 8 — Equal-Weight Top-20 (1/N Sizing)
 
 This is the project's most recent and most academically-faithful strategy variant. It deserves its own section because it changes the project's position-sizing rule for the first time.
 
@@ -489,7 +490,7 @@ This trade-off is exactly what the academic literature on concentrated vs divers
 
 ---
 
-## 11. Honest Limitations
+## 12. Honest Limitations
 
 The project is rigorous about disclosing what it doesn't claim.
 
@@ -535,7 +536,7 @@ Tiingo's ROE and P/E definitions may differ from Compustat / CRSP standards. Sta
 
 ---
 
-## 12. Reproducing This Project
+## 13. Reproducing This Project
 
 ### 13.1 Setup
 
@@ -599,7 +600,7 @@ Running the pipeline today on the same machine should produce bit-identical outp
 
 ---
 
-## 13. Source Code Map
+## 14. Source Code Map
 
 ```text
 src/
@@ -667,7 +668,7 @@ Reporting:                make_figures, write_strategy_history, write_project_do
 
 ---
 
-## 14. Output Layout
+## 15. Output Layout
 
 ```text
 data/
@@ -712,7 +713,7 @@ docs/
 
 ---
 
-## 15. Future Work
+## 16. Future Work
 
 In priority order.
 
@@ -754,7 +755,7 @@ WRDS gives access to Compustat fundamentals, which are the academic standard. RO
 
 ---
 
-## 16. References
+## 17. References
 
 ### Academic — factor model
 
@@ -796,7 +797,7 @@ WRDS gives access to Compustat fundamentals, which are the academic standard. RO
 
 ---
 
-## 17. Glossary
+## 18. Glossary
 
 | Term | Meaning |
 |---|---|
