@@ -551,10 +551,16 @@ Tiingo's ROE and P/E definitions may differ from Compustat / CRSP standards. Sta
 ```powershell
 git clone https://github.com/omerfyldz/factor_investing_in_sp500.git
 cd factor_investing_in_sp500
+
+# IMPORTANT: The three large data CSVs (~636 MB total) are stored in Git LFS.
+# You must run the following two commands to download them after cloning:
+git lfs install
+git lfs pull
+
 py -3.10 -m pip install -r requirements.txt
 ```
 
-Raw data CSVs are tracked via Git LFS — `git lfs install` + `git lfs pull` to materialize them.
+> **Note on data files:** Three CSVs (`sp500_prices_long.csv` ~255 MB, `sp500_fundamentals_daily_long.csv` ~191 MB, `sp500_fundamentals_statements_long.csv` ~190 MB) exceed GitHub's 100 MB file limit and are stored via Git Large File Storage (LFS). The `git lfs pull` command above downloads the actual files. All other data files (`sp500_constituents.csv`, `sp500_index_yahoo.csv`) are committed normally and require no LFS step. If you received this project as a ZIP file rather than via GitHub, the CSVs are already present and no LFS step is needed.
 
 ### 13.2 Full pipeline (slow — ~56 minutes)
 
