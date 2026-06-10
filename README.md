@@ -344,10 +344,14 @@ Final-equity numbers differ between vector (vec_final_eq) and Backtrader (bt_fin
 
 | Strategy | Annualized Alpha | Alpha t-stat | Alpha p-value | Beta to ^GSPC |
 |---|---:|---:|---:|---:|
-| improved_1 | **14.16%** | 3.96 | 0.0001 | -0.07 |
+| improved_8 | **15.41%** | 3.98 | 0.0001 | -0.12 |
+| improved_1 | 14.16% | 3.96 | 0.0001 | -0.07 |
+| improved_4 | 11.63% | 4.12 | 0.0000 | -0.08 |
 | improved_2 | 11.52% | 3.65 | 0.0003 | -0.07 |
 | improved_3 | 11.16% | 3.11 | 0.0019 | -0.07 |
 | base | 7.91% | 4.43 | 0.0000 | -0.05 |
+| improved_6 | 7.86% | 3.76 | 0.0002 | -0.04 |
+| improved_5 | 7.47% | 3.32 | 0.0009 | -0.03 |
 
 All variants produce statistically significant alpha vs ^GSPC at the 1% level. Negative beta is the factor tilt actively rotating into and out of names the cap-weighted index passively holds — these are *active* portfolios, not market-tracking.
 
@@ -355,12 +359,16 @@ All variants produce statistically significant alpha vs ^GSPC at the 1% level. N
 
 | Strategy | Train Sharpe | Test Sharpe | Test Cumulative Return | Test Max DD |
 |---|---:|---:|---:|---:|
-| `improved_2` (selected by train) | **1.14** | 0.96 | 58.5% | -5.8% |
+| `improved_4` (selected by train) | **1.29** | 1.02 | 60.4% | -6.0% |
+| `improved_6` | 1.20 | 0.85 | 35.1% | -8.0% |
+| `improved_2` | 1.14 | 0.96 | 58.5% | -5.8% |
+| `improved_8` | 1.12 | 0.98 | 102.5% | -10.9% |
+| `improved_5` | 1.11 | 0.79 | 43.4% | -11.2% |
 | `base` | 1.10 | 1.30 | 46.5% | -3.6% |
 | `improved_1` | 1.03 | **1.34** | **103.1%** | -5.2% |
 | `improved_3` | 0.98 | 0.98 | 57.4% | -10.5% |
 
-Improved 2 has the best train Sharpe and would have been selected pre-2021. Improved 1 had the strongest post-2020 *test* Sharpe — a reminder that single train/test splits are too narrow to call a winner.
+Improved 4 has the best train Sharpe and would have been selected pre-2021. Improved 1 had the strongest post-2020 *test* Sharpe — a reminder that single train/test splits are too narrow to call a winner.
 
 ### 9.5 Factor-mimicking portfolios (each factor in isolation)
 

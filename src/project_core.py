@@ -2868,7 +2868,7 @@ Backtrader is used for the staged strategy tests. Base and improved 1 use the mo
 ## Reproduce
 
 ```powershell
-cd C:\\Users\\asus\\Desktop\\sp500_factor_investing
+cd factor_investing_in_sp500
 py -3.10 src\\run_project.py
 ```
 
@@ -2970,7 +2970,7 @@ The vectorized improvement tests are used for fast monthly screening. The execut
 Run from a fresh Python session:
 
 ```powershell
-cd C:\\Users\\asus\\Desktop\\sp500_factor_investing
+cd factor_investing_in_sp500
 py -3.10 -m pip install -r requirements.txt
 py -3.10 src\\run_project.py
 ```
