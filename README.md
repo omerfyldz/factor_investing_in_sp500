@@ -447,7 +447,7 @@ When running the robustness test across our 8 strategies (`base` through `improv
 
 This is a very powerful and honest finding: despite having seemingly good single-test Sharpe ratios, once we account for the fact that we tried 8 different variations (base, expanding, stop/take, IC weighting, walk-forward, regime, HZZ, equal-weight), the best result is indistinguishable from data mining luck at the 5% level when benchmarked against ^GSPC. 
 
-See `results/robustness/` and `docs/MULTI_COMPARISON_TEST.md` for the exact outputs.
+See `results/robustness/` for the exact outputs.
 
 ---
 
@@ -508,7 +508,7 @@ The universe is current S&P 500 constituents only. Companies that failed or were
 
 ### 12.2 Multi-comparison problem (addressed)
 
-We've tried 8 strategy variants and report the best. With 8 variants at p < 0.05, the probability that *some* variant beats random by chance is ~34%. The correction is **Hansen (2005) SPA** + **Romano-Wolf (2005) StepM**, now implemented in `src/run_multi_comparison_test.py` using `arch.bootstrap`. Results in `results/robustness/`. See Section 10.5 and `docs/MULTI_COMPARISON_TEST.md`.
+We've tried 8 strategy variants and report the best. With 8 variants at p < 0.05, the probability that *some* variant beats random by chance is ~34%. The correction is **Hansen (2005) SPA** + **Romano-Wolf (2005) StepM**, now implemented in `src/run_multi_comparison_test.py` using `arch.bootstrap`. Results in `results/robustness/`. See Section 10.5.
 
 ### 12.3 Fixed-cash sizing (improveds 1–7)
 
@@ -698,7 +698,6 @@ results/
   improved_strategy_6/          — improved 6 outputs (HZZ cross-sectional trend)
   improved_strategy_7/          — improved 7 cost-sensitivity tables + figures
   improved_strategy_8/          — improved 8 outputs (equal-weight top-20)
-  improved_strategy_9/          — improved 9 outputs (inverse-vol-targeted top-20)
   comparison/                   — all_strategies_metrics.csv, all_strategies_walk_forward.csv,
                                     all_strategies_monte_carlo.csv, all_strategies_benchmark_alpha.csv,
                                     annual_returns_table.csv, hit_rate_per_strategy.csv, tail_risk_metrics.csv
@@ -708,21 +707,7 @@ results/
 figures/                        — all PNG figures (equity curves, drawdowns, factor
                                   returns, MC histogram, cost heatmap, etc.)
 presentation/
-  sp500_factor_investing_presentation.pdf  — auto-generated deck
-docs/
-  STRATEGY_HISTORY.md           — living history of every strategy improvement
-  PROJECT_REPORT.md             — assignment-style writeup
-  IMPROVED_4_STOP_TAKE_SENSITIVITY.md
-  IMPROVED_5_REGIME_FILTER.md
-  IMPROVED_6_HZZ_TREND.md
-  IMPROVED_7_COSTS.md
-  IMPROVED_8_TOP_N_SIZING.md
-  SIZING_AND_MARGIN.md          — sizer mechanics, margin rejections, long-only money growth
-  MULTI_COMPARISON_TEST.md      — Hansen SPA + Romano-Wolf results (auto-generated)
-  CODE_STRUCTURE.md
-  DATA_DICTIONARY.md
-  PROJECT_PLAN.md
-  CLAUDE_CODE_PROJECT_HANDOFF.md   — internal working notes
+  sp500_factor_investing_deck.pdf  — PDF presentation
 ```
 
 ---
@@ -733,7 +718,7 @@ In priority order.
 
 ### 16.1 Survivorship-bias-free panel via WRDS
 
-Former section 16.2, now the top priority. The user has WRDS access. See `docs/PROJECT_REVIEW_AND_FUTURE_WORK.md` for the exact WRDS tables needed.
+Former section 16.2, now the top priority. The user has WRDS access.
 
 ```text
 crsp.dsf                    — daily prices for every PERMNO (filtered to S&P 500 members)
