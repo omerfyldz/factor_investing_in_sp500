@@ -2,34 +2,64 @@
 
 ## Python Scripts
 
-- `src/project_core.py`: shared data loading, factor construction, FMP analysis, staged strategy logic, Backtrader classes, robustness tests, reporting, and presentation generation.
-- `src/run_project.py`: full reproducible pipeline. Run this for final regeneration.
-- `src/run_base_strategy.py`: reruns only the pure base strategy from processed CSVs.
-- `src/run_improved_strategy.py`: reruns improved 1, improved 2, and improved 3 from processed CSVs; it also reads raw daily prices/index data for the improved 2 and improved 3 daily Backtrader native stop/limit protective orders.
-- `src/run_improved_4_stop_take_sensitivity.py`: reruns only the improved 4 stop/take sensitivity experiment from processed factor data plus raw daily prices/index data.
-- `src/run_improved_5_regime_filter.py`: reruns only the improved 5 market-regime filter experiment from processed factor data plus raw daily prices/index data.
-- `src/compare_strategies.py`: rebuilds the staged base-versus-improved comparison table.
+- `src/project_core.py` — shared core. Data loading, factor construction (including HZZ cross-sectional trend), FMP analysis, staged strategy logic, two Backtrader engines (monthly market-only, daily with native stops), two position sizers (`FixedCashSizer`, `EquityPercentSizer`), evaluation-window helpers (`metrics_over_evaluation_window`, `filter_to_evaluation_window`), transaction-cost schedule, robustness tests (Monte Carlo, block bootstrap, walk-forward, benchmark comparison), figure generation, doc generation, and presentation builder. ~2000 lines.
+- `src/run_project.py` — full reproducible pipeline. Run this for final regeneration.
+- `src/run_base_strategy.py` — focused base rerun from processed CSVs.
+- `src/run_improved_strategy.py` — focused improved 1 / 2 / 3 rerun from processed CSVs plus raw daily prices for improved 2 / 3 Backtrader native stop/limit protective orders.
+- `src/run_improved_4_stop_take_sensitivity.py` — focused improved 4 stop/take grid + selected-candidate Backtrader run.
+- `src/run_improved_5_regime_filter.py` — focused improved 5 market-regime filter experiment.
+- `src/run_improved_6_hzz_trend.py` — focused improved 6 HZZ cross-sectional trend factor (paper-faithful).
+- `src/run_improved_7_costs.py` — focused improved 7 time-varying transaction-cost sensitivity for improveds 4 and 6.
+- `src/run_improved_8_top_n_sizing.py` — focused improved 8 equal-weight 1/N sizing with top-20.
+- `src/compare_strategies.py` — rebuilds the staged base-vs-improved comparison table.
 
 ## Active Result Folders
 
-- `results/base_strategy/`: base strategy vector results, Backtrader orders/trades/positions/equity, Monte Carlo, and bootstrap.
-- `results/improved_strategy/`: improved 1 results. This is the base strategy with the trend factor changed from full-sample regression to expanding no-lookahead regression.
-- `results/improved_strategy_2/`: improved 2 results. This builds on improved 1 and adds stop-loss/take-profit risk exits, including daily Backtrader stop/take outputs prefixed with `backtrader_daily_`.
-- `results/improved_strategy_3/`: improved 3 results. This builds on improved 2 and adds rolling rank-IC factor weights with shrinkage and caps, including daily Backtrader stop/take outputs prefixed with `backtrader_daily_`.
-- `results/improved_strategy_4/`: improved 4 focused stop/take sensitivity outputs. This keeps improved 2's static equal-weight signals and varies only stop-loss/take-profit thresholds using a training-only selection rule.
-- `results/improved_strategy_5/`: improved 5 focused market-regime filter outputs. This keeps improved 4's selected stop/take thresholds and adds a pre-specified `^GSPC` 10-month SMA cash filter.
-- `results/comparison/`: staged comparison, benchmark comparison, and walk-forward summary.
-- `results/fmp_analysis/`: portfolio-sort FMPs, regression FMPs, IC/rank IC, common-start comparison, selected-date weights, and trend-regression coefficients.
+- `results/base_strategy/` — base vector + Backtrader + Monte Carlo + block bootstrap.
+- `results/improved_strategy/` — improved 1 (no-lookahead trend).
+- `results/improved_strategy_2/` — improved 2 (10% / 20% stop/take).
+- `results/improved_strategy_3/` — improved 3 (dynamic IC weights).
+- `results/improved_strategy_4/` — improved 4 (walk-forward 5% / 30% stops + grid).
+- `results/improved_strategy_5/` — improved 5 (regime filter; rejected).
+- `results/improved_strategy_6/` — improved 6 (HZZ cross-sectional trend).
+- `results/improved_strategy_7/` — improved 7 (time-varying cost sensitivity tables + figures).
+- `results/improved_strategy_8/` — improved 8 (equal-weight top-20 + EquityPercentSizer).
+- `results/comparison/` — cross-strategy comparison tables, walk-forward summary, benchmark alpha (currently staged ladder only).
+- `results/fmp_analysis/` — portfolio-sort FMPs, regression FMPs, IC and rank IC summaries, common-start comparisons, factor weights, trend regression coefficients.
 
 ## Staging Rule
 
-The active project story is intentionally sequential:
+The project's organizing principle is **one-change-at-a-time**. Each improvement modifies exactly one design dimension on top of a previous accepted variant, so the cause of every change is unambiguous.
 
-1. Base: literal four-factor assignment-style strategy.
-2. Improved 1: change only trend-regression estimation to expanding/no-lookahead.
-3. Improved 2: build on improved 1 and add stop-loss/take-profit.
-4. Improved 3: build on improved 2 and add past-only dynamic factor weighting.
-5. Improved 4: branch from improved 2 and test stop/take threshold sensitivity without overwriting prior stages.
-6. Improved 5: branch from improved 4 and test one pre-specified index regime filter without optimizing the regime window.
+| # | Step | Foundation |
+|---|---|---|
+| 0 | Base — literal four-factor assignment-style strategy with full-sample trend regression | — |
+| 1 | Improved 1 — change only trend regression to expanding (no-lookahead) | base |
+| 2 | Improved 2 — add stop-loss and take-profit (10% / 20%) | improved 1 |
+| 3 | Improved 3 — add past-only dynamic factor weighting (rank-IC IR) | improved 2 |
+| 4 | Improved 4 — branch from improved 2 and walk-forward select stop/take (5% / 30%) | improved 2 |
+| 5 | Improved 5 — branch from improved 4 and add one pre-specified regime filter | improved 4 |
+| 6 | Improved 6 — branch from improved 4 and replace trend signal with HZZ cross-sectional | improved 4 |
+| 7 | Improved 7 — cost-sensitivity analysis of improveds 4 and 6 (not a new strategy) | improved 4 + improved 6 |
+| 8 | Improved 8 — branch from improved 4 with top-N → 20 and sizing → 5%-of-equity | improved 4 |
 
-Deferred ideas are documented in `docs/STRATEGY_HISTORY.md` and should be reintroduced one at a time only after the current staged results are recorded.
+## Common Evaluation Window
+
+All performance metrics use `EVALUATION_START = 2016-05-31` (the latest date the slowest-warmup strategy can first trade) via the `metrics_over_evaluation_window` helper in `project_core.py`. This applies uniformly to vector simulations, Backtrader runs, Monte Carlo random portfolios, block bootstrap, walk-forward, and benchmark comparison. The window contains 121 trading months ending `2026-05-31`.
+
+## Two Backtrader Engines
+
+- `MonthlySignalStrategy` — used by base and improved 1. Market-only orders, monthly bars.
+- `DailySignalStopTakeStrategy` — used by improveds 2-6 and 8. Daily adjusted OHLC bars, market entries/rebalances, native `bt.Order.Stop` and `bt.Order.Limit` (OCO-linked) protective exits. Rebalance exits cancel live protective orders before submitting market sells, preventing stale orders from creating accidental short positions.
+
+## Two Position Sizers
+
+- `FixedCashSizer` — `$100,000` per position regardless of equity. Used by improveds 1-7. Creates `Margin` rejections by Backtrader when target top-N × $100K exceeds available capital; realized average holdings are 4-9 names (not the target 10). Documented limitation.
+- `EquityPercentSizer` — fraction of current portfolio value per position. Used by improved 8 at 5% (1/N for top 20). Dynamic — positions grow with equity. Always supports the target top-N.
+
+## Deferred Ideas
+
+Documented in `docs/STRATEGY_HISTORY.md` and in the README's "Future Work" section. Should be reintroduced one at a time. The two highest-priority items:
+
+1. **Improved 9** — Hansen SPA / Romano-Wolf multi-comparison correction across all 8 variants.
+2. **Improved 10** — Survivorship-bias-free panel via WRDS / CRSP (the user has WRDS access).
