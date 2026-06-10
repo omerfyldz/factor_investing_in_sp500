@@ -8,3 +8,4 @@ yfinance==1.4.1
 backtrader==1.9.78.123
 PyYAML==6.0.3
 tqdm==4.67.3
+arch>=7.0.0
