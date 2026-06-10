@@ -1,7 +1,7 @@
 """Cross-strategy aggregator.
 
 Reads per-strategy ``vector_equity_curve.csv`` files from the staged ladder
-(base + improved 1-3) and from the focused improveds (4, 5, 6, 8, 9), then
+(base + improved 1-3) and from the focused improveds (4, 5, 6, 8), then
 produces unified comparison tables covering ALL strategies on the common
 evaluation window:
 
@@ -24,7 +24,6 @@ This script must be run AFTER:
 4. ``run_improved_6_hzz_trend.py``
 5. ``run_improved_7_costs.py`` (not aggregated -- it's a cost-sensitivity layer)
 6. ``run_improved_8_top_n_sizing.py``
-7. ``run_improved_9_vol_targeted.py``
 
 Improved 7 is NOT included in the cross-strategy aggregation because it is a
 cost-sensitivity ANALYSIS of improveds 4 and 6, not a stand-alone strategy.
@@ -49,7 +48,6 @@ STRATEGY_FOLDERS: dict[str, Path] = {
     "improved_5": core.IMPROVED_5_RESULTS_DIR,
     "improved_6": core.IMPROVED_6_RESULTS_DIR,
     "improved_8": core.IMPROVED_8_RESULTS_DIR,
-    "improved_9": core.IMPROVED_9_RESULTS_DIR,
 }
 
 # Mapping: strategy label -> the per-strategy run NAME the run scripts wrote
@@ -62,7 +60,6 @@ STRATEGY_NAMES: dict[str, str] = {
     "improved_5": core.IMPROVED_5_STRATEGY_NAME,
     "improved_6": core.IMPROVED_6_STRATEGY_NAME,
     "improved_8": core.IMPROVED_8_STRATEGY_NAME,
-    "improved_9": core.IMPROVED_9_STRATEGY_NAME,
 }
 
 

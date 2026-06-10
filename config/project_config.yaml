@@ -38,3 +38,11 @@ strategies:
   improved_3: improved_3_dynamic_ic_weights_stop_take_top10
   improved_4: improved_4_walkforward_stop_take_top10
   improved_5: improved_5_regime_filtered_stop_take_top10
+  improved_6: improved_6_hzz_cross_sectional_trend_stop_take_top10
+  improved_7: improved_7_time_varying_cost_sensitivity
+  improved_8: improved_8_equal_weight_top20
+
+evaluation:
+  start_date: "2016-05-31"
+  end_date: "2026-05-31"
+  n_months: 121

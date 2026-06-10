@@ -1,8 +1,8 @@
 # S&P 500 Factor Investing — A Multi-Strategy Quantitative Research Project
 
-A reproducible, end-to-end research project that builds, tests, and stress-tests a **nine-variant** ladder of factor-investing strategies on the S&P 500. The work pairs an academic factor model (quality, value, momentum, trend) with realistic execution simulation (Backtrader with native stop and take-profit orders), statistical robustness testing (Monte Carlo, block bootstrap, walk-forward, Hansen SPA + Romano-Wolf multi-comparison correction), realistic transaction-cost analysis, and an honest accounting of every methodological choice.
+A reproducible, end-to-end research project that builds, tests, and stress-tests a **eight-variant** ladder of factor-investing strategies on the S&P 500. The work pairs an academic factor model (quality, value, momentum, trend) with realistic execution simulation (Backtrader with native stop and take-profit orders), statistical robustness testing (Monte Carlo, block bootstrap, walk-forward, Hansen SPA + Romano-Wolf multi-comparison correction), realistic transaction-cost analysis, and an honest accounting of every methodological choice.
 
-The project is written so that someone new to factor investing can read the README top to bottom and understand both *what* was done and *why*. Section 2 is a primer; sections 5–11 are the technical core; sections 12+ are limitations, reproduction instructions, source layout, and references.
+The project is written so that someone new to factor investing can read the README top to bottom and understand both *what* was done and *why*. Section 2 is a primer; sections 5–11 are the technical core; sections 12–17 are limitations, reproduction instructions, source layout, and references.
 
 ---
 
@@ -25,7 +25,7 @@ The project is written so that someone new to factor investing can read the READ
 15. [Output Layout](#15-output-layout)
 16. [Future Work](#16-future-work)
 17. [References](#17-references)
-18. [Glossary](#18-glossary)
+
 
 ---
 
@@ -44,7 +44,7 @@ The project is structured to surface honest answers, not optimistic ones. Every 
 - **Universe:** 503 current S&P 500 constituents, daily Tiingo prices, point-in-time Tiingo fundamentals, frozen ^GSPC benchmark, all through 2026-05-31.
 - **Factors:** ROE, –P/E (positive, inverted), 12-month price momentum, and two flavors of trend factor (an index-derived predictive regression and a true Han-Zhou-Zhu cross-sectional regression).
 - **Strategies:** base + improved 1–8, each isolating one design change.
-- **Execution:** Backtrader with `FixedCashSizer` (improveds 1–7), `EquityPercentSizer` (improved 8), or `VolatilityTargetedSizer` (improved 9), native `bt.Order.Market` entries, `bt.Order.Stop` and `bt.Order.Limit` (OCO-linked) protective exits.
+- **Execution:** Backtrader with `FixedCashSizer` (improveds 1–7), `EquityPercentSizer` (improved 8), native `bt.Order.Market` entries, `bt.Order.Stop` and `bt.Order.Limit` (OCO-linked) protective exits.
 - **Evaluation window:** common `2016-05-31 → 2026-05-31` (121 months) across all strategies for apples-to-apples Sharpe / drawdown / Monte-Carlo comparison.
 - **Robustness:** 1000-simulation Monte Carlo against matched-eligibility random portfolios, 6-month block bootstrap, walk-forward train (≤ 2020-12) / test (2021+) split, time-varying transaction-cost sensitivity, and Hansen SPA + Romano-Wolf StepM multi-comparison correction across all 8 strategies.
 
@@ -61,7 +61,7 @@ The project is structured to surface honest answers, not optimistic ones. Every 
 | Monte Carlo p-values, block bootstrap, walk-forward | ✅ |
 | Time-varying transaction-cost sensitivity (improved 7) | ✅ |
 | Equal-weight 1/N top-20 strategy (improved 8) | ✅ |
-| Hansen SPA + Romano-Wolf multi-comparison correction | ✅ (script written; run after improved 9) |
+| Hansen SPA + Romano-Wolf multi-comparison correction | ✅ |
 | 15+ presentation figures (all 8 strategies) | ✅ (script written; run after aggregator) |
 | Survivorship-bias-free panel via WRDS | ⏳ future work |
 
@@ -434,7 +434,7 @@ Both finalists survive pessimistic costs. Improved 4 stays ahead at all cost lev
 
 ### 10.5 Multi-comparison correction (Hansen SPA + Romano-Wolf StepM)
 
-With 9 strategies tested at the 5% significance level, the probability that at least one beats a random portfolio by chance is roughly `1 - (1-0.05)^9 = 37%`. Every raw Monte Carlo p-value is therefore biased downward by the search-space size. Two complementary tests correct this.
+With 8 strategies tested at the 5% significance level, the probability that at least one beats a random portfolio by chance is roughly `1 - (1-0.05)^8 = 34%`. Every raw Monte Carlo p-value is therefore biased downward by the search-space size. Two complementary tests correct this.
 
 **Hansen (2005) Superior Predictive Ability (SPA) test**: tests whether the single best strategy significantly beats the benchmark after accounting for the full 8-strategy search space. Implemented in `arch.bootstrap.SPA` with 10,000 stationary block bootstrap reps, 6-month blocks. A small consistent p-value (< 0.05) confirms at least one strategy genuinely outperforms ^GSPC.
 
@@ -508,7 +508,7 @@ The universe is current S&P 500 constituents only. Companies that failed or were
 
 ### 12.2 Multi-comparison problem (addressed)
 
-We've tried 9 strategy variants and report the best. With 9 variants at p < 0.05, the probability that *some* variant beats random by chance is ~37%. The correction is **Hansen (2005) SPA** + **Romano-Wolf (2005) StepM**, now implemented in `src/run_multi_comparison_test.py` using `arch.bootstrap`. Results in `results/robustness/`. See Section 10.5 and `docs/MULTI_COMPARISON_TEST.md`.
+We've tried 8 strategy variants and report the best. With 8 variants at p < 0.05, the probability that *some* variant beats random by chance is ~34%. The correction is **Hansen (2005) SPA** + **Romano-Wolf (2005) StepM**, now implemented in `src/run_multi_comparison_test.py` using `arch.bootstrap`. Results in `results/robustness/`. See Section 10.5 and `docs/MULTI_COMPARISON_TEST.md`.
 
 ### 12.3 Fixed-cash sizing (improveds 1–7)
 
@@ -574,7 +574,7 @@ py -3.10 src\run_improved_5_regime_filter.py             # ~21 min
 py -3.10 src\run_improved_6_hzz_trend.py                 # ~25 min
 py -3.10 src\run_improved_7_costs.py                     # ~5 min (vector only)
 py -3.10 src\run_improved_8_top_n_sizing.py              # ~25 min
-py -3.10 src\aggregate_all_strategies.py                 # ~30 sec (run after all 9)
+py -3.10 src\aggregate_all_strategies.py                 # ~30 sec (run after all 8)
 py -3.10 src\run_multi_comparison_test.py                # ~5 min (requires arch package)
 py -3.10 src\make_presentation_figures.py                # ~2-3 min
 ```
@@ -625,7 +625,7 @@ src/
   run_improved_6_hzz_trend.py           — improved 6 HZZ cross-sectional trend
   run_improved_7_costs.py               — improved 7 time-varying cost sensitivity
   run_improved_8_top_n_sizing.py        — improved 8 equal-weight top-20 (1/N)
-  aggregate_all_strategies.py           — unified cross-strategy summary tables for all 9
+  aggregate_all_strategies.py           — unified cross-strategy summary tables for all 8
   run_multi_comparison_test.py          — Hansen SPA + Romano-Wolf StepM
   make_presentation_figures.py          — 15+ presentation figures (all 8 strategies)
   compare_strategies.py                 — comparison tables rebuilder
@@ -805,35 +805,3 @@ WRDS gives access to Compustat fundamentals, which are the academic standard. RO
 
 ---
 
-## 18. Glossary
-
-| Term | Meaning |
-|---|---|
-| **Alpha** | Return above what the market would have given you for the same risk exposure. Tested for statistical significance via regression t-stat. |
-| **Backtrader** | Python backtesting library used to simulate realistic broker execution including stop/limit orders. |
-| **Beta** | Sensitivity of strategy return to market return. Beta of 1.0 = moves 1-for-1 with the market; 0 = market-neutral. |
-| **Block bootstrap** | Resampling 6-month blocks of returns to characterize the strategy's Sharpe distribution independent of historical ordering. |
-| **Composite score** | Mean of the four z-scored factors per stock-month, used to rank stocks for top-N selection. |
-| **Cross-sectional regression** | At each month `t`, regress all eligible stocks' next-month returns on their factor values. Produces a coefficient vector per month. |
-| **Drawdown** | Peak-to-trough percentage loss. Max drawdown is the worst observed in the sample. |
-| **Equal-weight 1/N** | Position-sizing rule where each held name gets the same fraction (1/N) of portfolio value. |
-| **Eligible** | A stock is eligible at month-end `t` if its price > $5, next-month return is computable, and next-month open > 0. |
-| **Evaluation window** | The common date range (2016-05-31 to 2026-05-31) used for all cross-strategy Sharpe / drawdown / Monte Carlo computations. |
-| **FMP** | Factor-mimicking portfolio — a long-short portfolio constructed to isolate a single factor's return. |
-| **HZZ** | Han, Zhou, Zhu (2016) — the trend-factor paper this project builds on. |
-| **IC** | Information coefficient — Pearson correlation between a factor and next-period returns. Rank IC uses Spearman. |
-| **Look-ahead bias** | Using information that wouldn't have been known at the time of the trade. Base has it (full-sample regression); improveds 1–8 don't. |
-| **Monte Carlo** | Random portfolios sampled with the same rules as the strategy. p-value = fraction of random Sharpes ≥ strategy Sharpe. |
-| **OCO** | "One cancels other" — when one order in an OCO pair fills, the other is automatically cancelled. Used for stop/limit pairs. |
-| **PERMNO** | CRSP's permanent security identifier — unique and never reused even across ticker changes / corporate actions. |
-| **Quintile** | A 20% bucket of the cross-section. Q5 = top 20%, Q1 = bottom 20%. |
-| **Rank IC** | Spearman correlation between factor rank and next-period return rank. Robust to outliers. |
-| **Sharpe ratio** | Annualized (mean return) / (std return) × √(periods per year). Higher = better risk-adjusted performance. |
-| **Stop-loss** | Order that sells if the price drops to a threshold. We use 5–10% per position. |
-| **Survivorship bias** | Only including companies that survived to today. Inflates Sharpes; the project's known biggest limitation. |
-| **Take-profit** | Order that sells if the price rises to a threshold. We use 20–30% per position. |
-| **Top-N** | Number of stocks selected each month from the composite-score ranking. We use 10 (base–improved 7) or 20 (improved 8). |
-| **Walk-forward** | Train on data ≤ a cutoff (2020-12), test on data > the cutoff. The most honest single train/test split available. |
-| **Winsorize** | Cap extreme values at percentile thresholds (we use 1st / 99th) before z-scoring, to limit outlier influence. |
-| **WRDS / CRSP** | Wharton Research Data Services / Center for Research in Security Prices — the academic gold standard for stock data. |
-| **Z-score** | (value − mean) / std within each month's cross-section. Makes factors comparable in scale. |

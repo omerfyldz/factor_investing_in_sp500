@@ -11,9 +11,9 @@
 - `src/run_improved_6_hzz_trend.py` — focused improved 6 HZZ cross-sectional trend factor (paper-faithful).
 - `src/run_improved_7_costs.py` — focused improved 7 time-varying transaction-cost sensitivity for improveds 4 and 6.
 - `src/run_improved_8_top_n_sizing.py` — focused improved 8 equal-weight 1/N sizing with top-20.
-- `src/aggregate_all_strategies.py` — unified cross-strategy summary tables: metrics, walk-forward, Monte Carlo p-values, and benchmark alpha for all 9 strategies. Run after all focused scripts.
+- `src/aggregate_all_strategies.py` — unified cross-strategy summary tables: metrics, walk-forward, Monte Carlo p-values, and benchmark alpha for all 8 strategies. Run after all focused scripts.
 - `src/run_multi_comparison_test.py` — Hansen (2005) SPA test + Romano-Wolf (2005) StepM multi-comparison robustness correction. Requires `arch` package. Run after `aggregate_all_strategies.py`.
-- `src/make_presentation_figures.py` — builds 15+ publication-grade figures and summary tables from all 9 strategy outputs. Run last.
+- `src/make_presentation_figures.py` — builds 15+ publication-grade figures and summary tables from all 8 strategy outputs. Run last.
 - `src/compare_strategies.py` — rebuilds the staged base-vs-improved comparison table.
 
 ## Active Result Folders
@@ -46,7 +46,6 @@ The project's organizing principle is **one-change-at-a-time**. Each improvement
 | 6 | Improved 6 — branch from improved 4 and replace trend signal with HZZ cross-sectional | improved 4 |
 | 7 | Improved 7 — cost-sensitivity analysis of improveds 4 and 6 (not a new strategy) | improved 4 + improved 6 |
 | 8 | Improved 8 — branch from improved 4 with top-N → 20 and sizing → 5%-of-equity | improved 4 |
-| 9 | Improved 9 — branch from improved 8 with sizing → inverse-vol-targeted (top-20) | improved 8 |
 
 ## Common Evaluation Window
 
@@ -61,7 +60,6 @@ All performance metrics use `EVALUATION_START = 2016-05-31` (the latest date the
 
 - `FixedCashSizer` — `$100,000` per position regardless of equity. Used by improveds 1-7. Creates `Margin` rejections by Backtrader when target top-N × $100K exceeds available capital; realized average holdings are 4-9 names (not the target 10). Documented limitation. See `docs/SIZING_AND_MARGIN.md`.
 - `EquityPercentSizer` — fraction of current portfolio value per position. Used by improved 8 at 5% (1/N for top 20). Dynamic — positions grow with equity. Always supports the target top-N.
-- `VolatilityTargetedSizer` — like `EquityPercentSizer` but scales each position by `median_vol / stock_vol`. Low-volatility stocks get more capital; high-volatility stocks get less. Used by improved 9 at 5% nominal. The vector engine uses exact basket-level normalization; the Backtrader sizer is a per-name approximation.
 
 ## Deferred Ideas
 
