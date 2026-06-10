@@ -1,0 +1,2 @@
+test,n_models,n_periods,bootstrap_reps,block_size,p_value_consistent,p_value_lower,p_value_upper,interpretation
+Hansen_SPA,8,121,10000,6,0.6737,0.5404,0.7379,Small p_value_consistent (< 0.05) rejects the null that no strategy outperforms the benchmark after multi-comparison correction. lower/upper are bounds under different studentization assumptions.

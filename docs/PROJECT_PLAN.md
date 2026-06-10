@@ -4,7 +4,7 @@
 
 This project implements the factor-investing assignment on the S&P 500 instead of BIST100. The S&P 500 index ticker `^GSPC` replaces the BIST100 index as benchmark and trend-regression input. Other requirements remain aligned: frozen CSV data, month-end factors, lagged signals, Backtrader execution simulation, saved results, and reproducibility.
 
-The project extends the assignment with five additional dimensions: a paper-faithful HZZ cross-sectional trend factor (improved 6), realistic time-varying transaction-cost analysis (improved 7), equal-weight 1/N sizing with top-N expansion (improved 8), the common-evaluation-window methodology fix, and structured robustness testing (Monte Carlo + block bootstrap + walk-forward + cost sensitivity).
+The project extends the assignment with six additional dimensions: a paper-faithful HZZ cross-sectional trend factor (improved 6), realistic time-varying transaction-cost analysis (improved 7), equal-weight 1/N sizing with top-N expansion (improved 8), inverse-volatility targeted sizing (improved 9), the common-evaluation-window methodology fix, and structured robustness testing (Monte Carlo + block bootstrap + walk-forward + cost sensitivity + multi-comparison correction via Hansen SPA and Romano-Wolf StepM).
 
 ## Data Process
 
@@ -44,6 +44,7 @@ Before this fix, the project reported Sharpes computed over all 240 months of th
 | 6 | `improved_6_hzz_cross_sectional_trend_stop_take_top10` | improved 4 | Trend → HZZ cross-sectional | Paper-faithful; lower per-trade alpha than improved 4 |
 | 7 | `improved_7_time_varying_cost_sensitivity` | improved 4 + improved 6 | Adds year-keyed transaction-cost schedule | Cost-sensitivity study, not a new strategy |
 | 8 | `improved_8_equal_weight_top20` | improved 4 | top-N 10→20, sizing → 5%-of-equity | Wealth-maximizer; lower Sharpe than improved 4 |
+| 9 | `improved_9_vol_targeted_top20` | improved 8 | sizing → inverse-vol weighted (top-20) | Risk-budget sizing; low-vol names get more capital |
 
 ## Execution Model
 
@@ -55,6 +56,7 @@ Initial capital: `$1,000,000`. Commission: 0 in baseline backtests (transaction 
 | improveds 2, 3, 4, 5, 6 | `DailySignalStopTakeStrategy` | `FixedCashSizer` ($100k) | Native `bt.Order.Stop` + `bt.Order.Limit` (OCO-linked) |
 | improved 7 | Vector-only cost sensitivity (uses existing improved 4 / 6 signals) | n/a | Inherited |
 | improved 8 | `DailySignalStopTakeStrategy` | `EquityPercentSizer` (5% per position) | Native `bt.Order.Stop` + `bt.Order.Limit` (OCO-linked) |
+| improved 9 | `DailySignalStopTakeStrategy` | `VolatilityTargetedSizer` (5% nominal, scaled by median_vol/stock_vol) | Native `bt.Order.Stop` + `bt.Order.Limit` (OCO-linked) |
 
 For risk-managed strategies, rebalance exits cancel live protective orders before submitting market exits. This prevents stale stop/limit orders from firing after a position has already been closed.
 
@@ -62,19 +64,26 @@ For risk-managed strategies, rebalance exits cancel live protective orders befor
 
 - **Monte Carlo**: 1,000 random portfolios per strategy, sampled from the same eligible universe with matching top-N, sizing, stop/take, and regime-filter rules. p-value computed over the common evaluation window.
 - **Block bootstrap**: 1,000 resamples per strategy, 6-month blocks, applied to the strategy's monthly return series in the eval window.
-- **Walk-forward**: train (eval window through 2020-12) vs test (2021+). Currently computed only for the staged ladder; extension to improveds 4-8 is documented future work.
+- **Walk-forward**: train (eval window through 2020-12) vs test (2021+). Computed for all 9 strategies via `aggregate_all_strategies.py`.
 - **Time-varying transaction-cost sensitivity** (improved 7): zero / central (per-year estimates from Frazzini-Israel-Moskowitz 2018, ITG/Virtu, JPM, NYSE TAQ) / pessimistic (2× central) scenarios.
+- **Multi-comparison correction** (`src/run_multi_comparison_test.py`): Hansen (2005) SPA test and Romano-Wolf (2005) StepM step-down procedure correct for the multi-comparison problem (9 strategies tested → family-wise error rate inflation). Uses `arch.bootstrap` stationary block bootstrap with 10,000 reps. Results in `results/robustness/`. See `docs/MULTI_COMPARISON_TEST.md`.
 
 ## Main Files
 
-- `src/run_project.py` — full reproducible pipeline.
+- `src/run_project.py` — full reproducible pipeline (base + improved 1-3).
 - `src/run_improved_4_stop_take_sensitivity.py` — focused improved 4 grid + selected candidate.
 - `src/run_improved_5_regime_filter.py` — focused improved 5.
 - `src/run_improved_6_hzz_trend.py` — focused improved 6 HZZ.
 - `src/run_improved_7_costs.py` — focused improved 7 cost sensitivity.
 - `src/run_improved_8_top_n_sizing.py` — focused improved 8 equal-weight top-20.
+- `src/run_improved_9_vol_targeted.py` — focused improved 9 volatility-targeted sizing.
+- `src/aggregate_all_strategies.py` — unified cross-strategy summary tables (metrics, walk-forward, MC, benchmark alpha) for all 9 strategies.
+- `src/run_multi_comparison_test.py` — Hansen SPA + Romano-Wolf StepM multi-comparison robustness test.
+- `src/make_presentation_figures.py` — builds 15+ presentation figures and summary tables from all 9 strategy outputs.
 - `requirements.txt` — pinned runtime.
 - `data/processed/factor_panel.csv` — final factor panel.
-- `results/` — saved FMP, IC, staged strategy, focused improveds 4-8, Backtrader, Monte Carlo, validation outputs.
+- `results/` — saved FMP, IC, staged strategy, focused improveds 4-9, Backtrader, Monte Carlo, validation, comparison, and robustness outputs.
 - `figures/` — saved plots.
 - `presentation/sp500_factor_investing_presentation.pdf` — generated deck.
+- `docs/SIZING_AND_MARGIN.md` — explains sizer mechanics, margin rejections, and long-only money growth.
+- `docs/MULTI_COMPARISON_TEST.md` — methodology and results of Hansen SPA + Romano-Wolf multi-comparison correction (auto-generated).

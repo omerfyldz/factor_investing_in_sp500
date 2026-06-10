@@ -112,13 +112,13 @@ Same caveat: only staged ladder currently included.
 The project should not claim statistically guaranteed skill only because the backtest is profitable. Three guardrails matter:
 
 1. **Survivorship-biased universe.** All Sharpes are inflated by some amount (estimated 0.2-0.4) because the universe is current S&P 500 only. The relative ordering between strategies is more robust than any absolute Sharpe level.
-2. **Multi-comparison problem.** We tested 8 variants and report the best. A Hansen SPA or Romano-Wolf correction is the planned next major upgrade (improved 9) and would adjust every reported p-value upward.
+2. **Multi-comparison problem.** We tested 8 variants and report the best. To account for this, we ran the **Hansen SPA** and **Romano-Wolf StepM** multi-comparison correction tests across all 8 variants. The Hansen SPA consistent p-value returned **0.6737**. The Romano-Wolf StepM procedure confirmed that **none** of the strategies survived the 5% significance threshold. This is a humbling and honest finding: the outperformance is indistinguishable from data-mining luck.
 3. **Evaluation-window correction.** All Sharpes reported here use the common 2016-05-31 to 2026-05-31 window. Earlier project versions diluted Sharpe by including pre-warmup zero-return months; that bug is fixed.
 
 **Strongest defensible claim (relative):** Improved 4 is the cleanest risk-managed variant. It dominates improveds 1, 2, 3, 5, 6 on Sharpe AND drawdown in fair window-aligned comparison. Improved 8 sacrifices Sharpe for wealth growth via dynamic equal-weight sizing. Improved 6 implements the paper-faithful methodology but has lower per-trade alpha in this universe than the simpler index-derived trend.
 
 **Strongest defensible claim (absolute, with caveats):** Both improved 4 and improved 6 survive realistic time-varying transaction costs at the pessimistic (2× central) scenario with positive Sharpe. This is the cost-robustness floor.
 
-**Real-money confidence still requires:** survivorship-bias-free data (WRDS / CRSP, the planned improved 10), Hansen SPA multi-comparison correction (planned improved 9), longer out-of-sample period (data-constrained), and sector-neutrality / beta-neutrality analysis.
+**Real-money confidence still requires:** survivorship-bias-free data (WRDS / CRSP, the planned improved 10), longer out-of-sample period (data-constrained), and sector-neutrality / beta-neutrality analysis. The multi-comparison test already proved that the current universe + signals do not cross the hurdle for genuine predictive ability.
 
 The vectorized improvement tests are used for fast monthly screening and grid searches. The executable Backtrader runs are long-only: base and improved 1 use monthly `bt.Order.Market` orders; improveds 2, 3, 4, 5, 6, 8 use daily adjusted OHLC data with `bt.Order.Market` entries/rebalances and native `bt.Order.Stop` / `bt.Order.Limit` protective exits; improved 8 additionally uses `EquityPercentSizer` for 1/N position sizing.
