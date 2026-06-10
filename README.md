@@ -13,19 +13,18 @@ The project is written so that someone new to factor investing can read the READ
 3. [Research Foundation](#3-research-foundation)
 4. [Data](#4-data)
 5. [Factor Construction](#5-factor-construction)
-6. [The Strategy Ladder — Nine Variants](#6-the-strategy-ladder--nine-variants)
+6. [The Strategy Ladder — Eight Variants](#6-the-strategy-ladder--nine-variants)
 7. [Execution Model](#7-execution-model)
 8. [Evaluation Methodology — Common Window Fix](#8-evaluation-methodology--common-window-fix)
 9. [Results](#9-results)
 10. [Robustness Analysis](#10-robustness-analysis)
-11. [Improved 9 — Volatility-Targeted Sizing](#11-improved-9--volatility-targeted-sizing)
-12. [Honest Limitations](#12-honest-limitations)
-13. [Reproducing This Project](#13-reproducing-this-project)
-14. [Source Code Map](#14-source-code-map)
-15. [Output Layout](#15-output-layout)
-16. [Future Work](#16-future-work)
-17. [References](#17-references)
-18. [Glossary](#18-glossary)
+11. [Honest Limitations](#12-honest-limitations)
+12. [Reproducing This Project](#13-reproducing-this-project)
+13. [Source Code Map](#14-source-code-map)
+14. [Output Layout](#15-output-layout)
+15. [Future Work](#16-future-work)
+16. [References](#17-references)
+17. [Glossary](#18-glossary)
 
 ---
 
@@ -35,7 +34,7 @@ The project is written so that someone new to factor investing can read the READ
 
 This project asks one question: **can a systematic stock-picking strategy on the S&P 500, built from a handful of fundamental and price-based signals, beat the index on a risk-adjusted basis?**
 
-To answer it carefully, the project builds **nine different strategies** that share a common four-factor backbone — ROE (quality), P/E (value), 12-month price momentum, and a moving-average trend signal — and changes exactly one design dimension at a time so each improvement is scientifically readable. The strategies are evaluated on the same monthly trading universe (current S&P 500 constituents, 2006–2026), execute through a realistic broker simulator (Backtrader), and pass through a battery of statistical robustness tests (Monte Carlo random portfolios, block bootstrap, walk-forward train/test, realistic transaction-cost scenarios, and multi-comparison correction via Hansen SPA + Romano-Wolf StepM).
+To answer it carefully, the project builds **eight different strategies** that share a common four-factor backbone — ROE (quality), P/E (value), 12-month price momentum, and a moving-average trend signal — and changes exactly one design dimension at a time so each improvement is scientifically readable. The strategies are evaluated on the same monthly trading universe (current S&P 500 constituents, 2006–2026), execute through a realistic broker simulator (Backtrader), and pass through a battery of statistical robustness tests (Monte Carlo random portfolios, block bootstrap, walk-forward train/test, realistic transaction-cost scenarios, and multi-comparison correction via Hansen SPA + Romano-Wolf StepM).
 
 The project is structured to surface honest answers, not optimistic ones. Every reported number is reproducible from frozen raw CSVs. Every methodological deviation from academic best practice is explicitly disclosed in the limitations section.
 
@@ -43,10 +42,10 @@ The project is structured to surface honest answers, not optimistic ones. Every 
 
 - **Universe:** 503 current S&P 500 constituents, daily Tiingo prices, point-in-time Tiingo fundamentals, frozen ^GSPC benchmark, all through 2026-05-31.
 - **Factors:** ROE, –P/E (positive, inverted), 12-month price momentum, and two flavors of trend factor (an index-derived predictive regression and a true Han-Zhou-Zhu cross-sectional regression).
-- **Strategies:** base + improved 1–9, each isolating one design change.
+- **Strategies:** base + improved 1–8, each isolating one design change.
 - **Execution:** Backtrader with `FixedCashSizer` (improveds 1–7), `EquityPercentSizer` (improved 8), or `VolatilityTargetedSizer` (improved 9), native `bt.Order.Market` entries, `bt.Order.Stop` and `bt.Order.Limit` (OCO-linked) protective exits.
 - **Evaluation window:** common `2016-05-31 → 2026-05-31` (121 months) across all strategies for apples-to-apples Sharpe / drawdown / Monte-Carlo comparison.
-- **Robustness:** 1000-simulation Monte Carlo against matched-eligibility random portfolios, 6-month block bootstrap, walk-forward train (≤ 2020-12) / test (2021+) split, time-varying transaction-cost sensitivity, and Hansen SPA + Romano-Wolf StepM multi-comparison correction across all 9 strategies.
+- **Robustness:** 1000-simulation Monte Carlo against matched-eligibility random portfolios, 6-month block bootstrap, walk-forward train (≤ 2020-12) / test (2021+) split, time-varying transaction-cost sensitivity, and Hansen SPA + Romano-Wolf StepM multi-comparison correction across all 8 strategies.
 
 ### 1.3 What's been built
 
@@ -55,15 +54,14 @@ The project is structured to surface honest answers, not optimistic ones. Every 
 | Frozen raw data (prices, fundamentals, statements, benchmark) | ✅ |
 | Processed monthly factor panel | ✅ |
 | Factor-mimicking portfolios + information coefficients (IC) | ✅ |
-| Nine strategy variants (base + improved 1–9) | ✅ |
+| Eight strategy variants (base + improved 1–8) | ✅ |
 | Three Backtrader engines + three position sizers | ✅ |
 | Common-window evaluation methodology fix | ✅ |
 | Monte Carlo p-values, block bootstrap, walk-forward | ✅ |
 | Time-varying transaction-cost sensitivity (improved 7) | ✅ |
 | Equal-weight 1/N top-20 strategy (improved 8) | ✅ |
-| Inverse-vol-targeted sizing top-20 (improved 9) | ✅ |
 | Hansen SPA + Romano-Wolf multi-comparison correction | ✅ (script written; run after improved 9) |
-| 15+ presentation figures (all 9 strategies) | ✅ (script written; run after aggregator) |
+| 15+ presentation figures (all 8 strategies) | ✅ (script written; run after aggregator) |
 | Survivorship-bias-free panel via WRDS | ⏳ future work |
 
 ---
@@ -196,7 +194,7 @@ Eligible stocks with a valid composite score enter the top-N selection ranked by
 
 ---
 
-## 6. The Strategy Ladder — Nine Variants
+## 6. The Strategy Ladder — Eight Variants
 
 The project's organizing principle is **one-change-at-a-time**: every improvement modifies exactly one design dimension on top of a previous accepted variant, so the cause of every performance change is unambiguous.
 
@@ -211,7 +209,6 @@ The project's organizing principle is **one-change-at-a-time**: every improvemen
 | `improved_6_hzz_cross_sectional_trend_stop_take_top10` | improved 4 | Trend signal switches to HZZ cross-sectional regression with 12-month β smoothing | Paper-faithful methodology |
 | `improved_7_time_varying_cost_sensitivity` | improveds 4 and 6 | Adds time-varying transaction costs (commission + slippage) across three scenarios | Realism stress test (not a new strategy — a cost study of the two finalists) |
 | `improved_8_equal_weight_top20` | improved 4 | top-N → 20 *and* sizing → equal-weight 5% of equity per position | Industry-standard sizing + diversification |
-| `improved_9_vol_targeted_top20` | improved 8 | sizing → inverse-vol-weighted (top-20, 5% nominal) | Risk-budget equal sizing; low-vol names get more capital |
 
 ### Per-strategy notes
 
@@ -233,8 +230,6 @@ The project's organizing principle is **one-change-at-a-time**: every improvemen
 
 **improved 8.** Two mechanically-coupled changes on top of improved 4: top-N 10 → 20 and sizing fixed-$100K → equal-weight 5%-of-equity. The changes are coupled because $1M of starting capital cannot fund 20 fixed-$100K positions; sizing had to switch for top-N expansion to be meaningful. Justified by DeMiguel-Garlappi-Uppal (2009) and the Invesco RSP ETF industry analog.
 
-**improved 9.** One additional change on top of improved 8: equal-weight 5%-of-equity → inverse-volatility-targeted sizing. Each of the top-20 positions is sized as `5% × (median_vol / stock_vol) × equity`, so low-volatility names get more capital and high-volatility names get less. This is a **risk-budget** approach: in theory, each position contributes equal expected volatility to the portfolio. New `VolatilityTargetedSizer` Backtrader class. See `docs/SIZING_AND_MARGIN.md`.
-
 ---
 
 ## 7. Execution Model
@@ -244,8 +239,7 @@ The project's organizing principle is **one-change-at-a-time**: every improvemen
 | Initial capital | $1,000,000 |
 | Per-position sizing (improveds 1–7) | $100,000 fixed (`FixedCashSizer`) |
 | Per-position sizing (improved 8) | 5% of current equity (`EquityPercentSizer`) |
-| Per-position sizing (improved 9) | 5% × (median_vol / stock_vol) × current equity (`VolatilityTargetedSizer`) |
-| Top-N target | 10 (base–improved 7), 20 (improved 8–9) |
+| Top-N target | 10 (base–improved 7), 20 (improved 8) |
 | Commission (baseline backtests) | 0 bps |
 | Commission (improved 7 sensitivity) | 0 / central / pessimistic scenarios, year-keyed |
 | Rebalance frequency | Monthly at month-end signal → next-month-open execution |
@@ -315,7 +309,7 @@ Every published factor paper restricts cross-strategy comparison to a common eva
 
 ## 9. Results
 
-### 9.1 Headline comparison — all 9 strategies, eval window 2016-05 to 2026-05
+### 9.1 Headline comparison — all 8 strategies, eval window 2016-05 to 2026-05
 
 | Strategy | Vec Sharpe | BT Sharpe | Vec Max DD | BT Max DD | Vec Final | BT Final | MC p | Avg Pos |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -327,7 +321,6 @@ Every published factor paper restricts cross-strategy comparison to a common eva
 | `improved_5` | +0.93 | +1.06 | -11.2% | -10.6% | $2.15M | $2.11M | 0.099 | 7.02 |
 | `improved_6` | +1.02 | +1.02 | -8.0% | -11.2% | $2.04M | $3.16M | 0.290 | 9.92 |
 | **`improved_8`** | +1.03 | +1.11 | -10.9% | -11.9% | **$3.63M** | $3.09M | 0.306 | **16.86** |
-| `improved_9` | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 
 Bold = best-in-column among honest variants (base excluded for the look-ahead reason).
 
@@ -345,7 +338,6 @@ Final-equity numbers differ between vector (vec_final_eq) and Backtrader (bt_fin
 | improved_5 | 1.06 | -10.6% | $2.11M | Regime filter strips too much exposure; rejected |
 | improved_6 | 1.02 | -11.2% | $3.16M | Paper-faithful HZZ trend, but per-trade alpha is lower than improved 4's index-derived approach |
 | improved_8 | 1.11 | -11.9% | $3.09M | Wealth-maximizer via dynamic 5%-of-equity compounding; pays for it in drawdown |
-| improved_9 | TBD | TBD | TBD | Inverse-vol sizing — results available after running `run_improved_9_vol_targeted.py` |
 
 ### 9.3 Benchmark comparison (alpha and beta vs ^GSPC, eval window)
 
@@ -450,40 +442,6 @@ See `results/robustness/` and `docs/MULTI_COMPARISON_TEST.md` for the exact outp
 
 ---
 
-## 11. Improved 9 — Volatility-Targeted Sizing
-
-Builds on improved 8 by changing exactly one dimension: equal-weight sizing → **inverse-vol-targeted sizing**.
-
-### 11.1 What it does
-
-Each of the top-20 positions is sized proportionally to `1 / realized_vol_i`, normalized so the basket sums to the full equity allocation:
-
-```
-w_i = (1 / vol_i) / Σ_j(1 / vol_j)        # exact basket normalization in vector engine
-dollars_i = w_i × portfolio_value
-```
-
-Low-volatility stocks get more capital; high-volatility stocks get less. Stock-level realized volatility is computed from 63 trailing daily log returns, floored at 10% annualized to prevent extreme inverse weights.
-
-### 11.2 Why inverse-vol?
-
-| Justification | Source |
-|---|---|
-| Inverse-vol is the simplest risk-budget approach: each position contributes equal expected volatility to the portfolio | Clarke, de Silva, Thorley (2011), *JPM* |
-| Outperforms naive equal-weight on risk-adjusted basis across global equity universes | Leote de Carvalho, Lu, Moulin (2012) |
-| More defensible than mean-variance optimization: no estimation of expected returns required | DeMiguel, Garlappi, Uppal (2009) |
-| Industry analog: MSCI Minimum Volatility ETFs, USMV | BlackRock iShares |
-
-### 11.3 Execution
-
-The vector engine computes exact inverse-vol weights via `compute_inverse_vol_weights`. The Backtrader `VolatilityTargetedSizer` uses a per-name approximation: `5% × (median_vol / stock_vol) × portfolio_value`. See `docs/SIZING_AND_MARGIN.md` for the detailed comparison.
-
-### 11.4 Results
-
-Results available after running `py -3.10 src\run_improved_9_vol_targeted.py` (~25 minutes). The table in section 9.1 will be updated once the script completes.
-
----
-
 ## 12. Improved 8 — Equal-Weight Top-20 (1/N Sizing)
 
 This is the project's most recent and most academically-faithful strategy variant. It deserves its own section because it changes the project's position-sizing rule for the first time.
@@ -531,7 +489,7 @@ This trade-off is exactly what the academic literature on concentrated vs divers
 
 ---
 
-## 12. Honest Limitations
+## 11. Honest Limitations
 
 The project is rigorous about disclosing what it doesn't claim.
 
@@ -577,7 +535,7 @@ Tiingo's ROE and P/E definitions may differ from Compustat / CRSP standards. Sta
 
 ---
 
-## 13. Reproducing This Project
+## 12. Reproducing This Project
 
 ### 13.1 Setup
 
@@ -607,7 +565,6 @@ py -3.10 src\run_improved_5_regime_filter.py             # ~21 min
 py -3.10 src\run_improved_6_hzz_trend.py                 # ~25 min
 py -3.10 src\run_improved_7_costs.py                     # ~5 min (vector only)
 py -3.10 src\run_improved_8_top_n_sizing.py              # ~25 min
-py -3.10 src\run_improved_9_vol_targeted.py              # ~25 min
 py -3.10 src\aggregate_all_strategies.py                 # ~30 sec (run after all 9)
 py -3.10 src\run_multi_comparison_test.py                # ~5 min (requires arch package)
 py -3.10 src\make_presentation_figures.py                # ~2-3 min
@@ -622,7 +579,6 @@ py -3.10 -m py_compile src\project_core.py src\run_project.py ^
     src\run_improved_6_hzz_trend.py ^
     src\run_improved_7_costs.py ^
     src\run_improved_8_top_n_sizing.py ^
-    src\run_improved_9_vol_targeted.py ^
     src\aggregate_all_strategies.py ^
     src\run_multi_comparison_test.py ^
     src\make_presentation_figures.py
@@ -643,7 +599,7 @@ Running the pipeline today on the same machine should produce bit-identical outp
 
 ---
 
-## 14. Source Code Map
+## 13. Source Code Map
 
 ```text
 src/
@@ -660,10 +616,9 @@ src/
   run_improved_6_hzz_trend.py           — improved 6 HZZ cross-sectional trend
   run_improved_7_costs.py               — improved 7 time-varying cost sensitivity
   run_improved_8_top_n_sizing.py        — improved 8 equal-weight top-20 (1/N)
-  run_improved_9_vol_targeted.py        — improved 9 inverse-vol-targeted top-20
   aggregate_all_strategies.py           — unified cross-strategy summary tables for all 9
   run_multi_comparison_test.py          — Hansen SPA + Romano-Wolf StepM
-  make_presentation_figures.py          — 15+ presentation figures (all 9 strategies)
+  make_presentation_figures.py          — 15+ presentation figures (all 8 strategies)
   compare_strategies.py                 — comparison tables rebuilder
 ```
 
@@ -712,7 +667,7 @@ Reporting:                make_figures, write_strategy_history, write_project_do
 
 ---
 
-## 15. Output Layout
+## 14. Output Layout
 
 ```text
 data/
@@ -757,7 +712,7 @@ docs/
 
 ---
 
-## 16. Future Work
+## 15. Future Work
 
 In priority order.
 
@@ -799,7 +754,7 @@ WRDS gives access to Compustat fundamentals, which are the academic standard. RO
 
 ---
 
-## 17. References
+## 16. References
 
 ### Academic — factor model
 
@@ -841,7 +796,7 @@ WRDS gives access to Compustat fundamentals, which are the academic standard. RO
 
 ---
 
-## 18. Glossary
+## 17. Glossary
 
 | Term | Meaning |
 |---|---|

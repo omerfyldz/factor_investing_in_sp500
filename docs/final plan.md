@@ -1,14 +1,13 @@
-# Project Finalization Plan — Improveds 9 + 10, Aggregator, Figures, Doc Sync
+# Project Finalization Plan — Robustness & Finalization, Aggregator, Figures, Doc Sync
 
 ## Context
 
 The S&P 500 factor investing project is in finalization. Before the final end-to-end pipeline run, we need to land a coherent set of changes that close the remaining gaps identified in `docs/PROJECT_REVIEW_AND_FUTURE_WORK.md`. Specifically:
 
-- Add **improved 9** = volatility-targeted top-20 (inverse-vol weights), built on improved 4's risk-managed foundation. This addresses the "no volatility-targeted sizing" gap (industry standard at AQR/Two Sigma) and provides a sister variant to improved 8's equal-weight 1/N for the wealth-vs-Sharpe trade-off discussion.
 - Add **multi-comparison test as a robustness analysis** (NOT named "improved 10"). Hansen SPA + Romano-Wolf StepM via `arch.bootstrap` applied across all 9 strategy variants. Outputs land in `results/robustness/` to make clear this is a statistical correction, not a new strategy. Critical for any statistical-significance claim because we tested 9 variants and report the best.
 - Build a **separate aggregator script** (`aggregate_all_strategies.py`) that produces unified walk-forward and benchmark-comparison tables covering all 9 strategies (currently restricted to the staged ladder of base + improved 1-3).
 - Build a **separate figure script** (`make_presentation_figures.py`) producing 15+ presentation-grade figures and tables across all strategies (currently only 11 figures, none of which include improveds 4-9 on a single chart).
-- Update **docs** (README, PROJECT_REPORT, PROJECT_PLAN, CODE_STRUCTURE, DATA_DICTIONARY) to reflect improveds 9 + 10 and the new aggregator/figures.
+- Update **docs** (README, PROJECT_REPORT, PROJECT_PLAN, CODE_STRUCTURE, DATA_DICTIONARY) to reflect robustness additions and the new aggregator/figures.
 - Add a new doc **SIZING_AND_MARGIN.md** explaining the long-only money-growth mechanics, Margin rejection semantics, and how each sizer handles cash through time.
 
 After these changes, the user runs:
@@ -18,7 +17,6 @@ After these changes, the user runs:
 4. `py -3.10 src\run_improved_6_hzz_trend.py`
 5. `py -3.10 src\run_improved_7_costs.py`
 6. `py -3.10 src\run_improved_8_top_n_sizing.py`
-7. `py -3.10 src\run_improved_9_vol_targeted.py` (NEW)
 8. `py -3.10 src\aggregate_all_strategies.py` (NEW)
 9. `py -3.10 src\run_multi_comparison_test.py` (NEW — robustness analysis, runs last because it needs all 9 strategies' curves)
 10. `py -3.10 src\make_presentation_figures.py` (NEW)
@@ -34,14 +32,12 @@ The intended outcome is a project where every claim is statistically corrected f
 **Constants** (insert near existing IMPROVED_8_* block):
 
 ```python
-IMPROVED_9_RESULTS_DIR = RESULTS_DIR / "improved_strategy_9"
 ROBUSTNESS_RESULTS_DIR = RESULTS_DIR / "robustness"
-IMPROVED_9_STRATEGY_NAME = "improved_9_vol_targeted_top20"
 VOL_LOOKBACK_DAYS = 63    # ~3 months of trading days
 VOL_FLOOR = 0.05          # annualized vol floor (prevents division by tiny vols)
 ```
 
-Add both `IMPROVED_9_RESULTS_DIR` and `ROBUSTNESS_RESULTS_DIR` to `ensure_dirs` list.
+Add `ROBUSTNESS_RESULTS_DIR` to `ensure_dirs` list.
 
 **StrategySpec field additions** (existing dataclass at lines 72-95):
 
@@ -104,20 +100,6 @@ def position_size_for_spec(spec, equity, per_stock_vol_weights=None):
 
 ---
 
-### 2. `src/run_improved_9_vol_targeted.py` (NEW)
-
-Mirrors `src/run_improved_8_top_n_sizing.py` structure. Key differences:
-
-- Spec: `top_n=20`, `sizing_method="vol_targeted"`, `vol_lookback_days=63`, `stop_loss=0.05`, `take_profit=0.30`, `trend_col="trend_expanding_z"`, foundation = improved 4
-- Saves vector + Backtrader + MC + bootstrap to `results/improved_strategy_9/`
-- Writes `docs/IMPROVED_9_VOL_TARGETED.md` with full justification (cite AQR vol-targeting research, Carhart 1997, the "risk parity" literature)
-- Appends section to `docs/STRATEGY_HISTORY.md`
-- Compares against improved 4 (sister cost-robust variant) and improved 8 (sister 1/N variant)
-
-Runtime: ~25 min (similar to improved 8).
-
----
-
 ### 3. `src/aggregate_all_strategies.py` (NEW)
 
 Standalone script that produces unified comparison tables across all 9 strategies. Run AFTER all focused scripts.
@@ -130,7 +112,7 @@ def main():
     # Read improveds 4, 5, 6, 8, 9 from per-strategy folders
     extras = []
     for d in [IMPROVED_4_RESULTS_DIR, IMPROVED_5_RESULTS_DIR, IMPROVED_6_RESULTS_DIR,
-              IMPROVED_8_RESULTS_DIR, IMPROVED_9_RESULTS_DIR]:
+              IMPROVED_8_RESULTS_DIR]:
         path = d / "vector_equity_curve.csv"
         if path.exists():
             curve = pd.read_csv(path, parse_dates=["month"])
@@ -272,11 +254,9 @@ Total presentation grows from ~12 slides to ~20.
 
 ## New files to be created
 
-- `src/run_improved_9_vol_targeted.py`
 - `src/run_multi_comparison_test.py` (NOT named improved 10)
 - `src/aggregate_all_strategies.py`
 - `src/make_presentation_figures.py`
-- `docs/IMPROVED_9_VOL_TARGETED.md`
 - `docs/MULTI_COMPARISON_TEST.md` (NOT IMPROVED_10_*.md)
 - `docs/SIZING_AND_MARGIN.md`
 
@@ -301,8 +281,7 @@ After implementation:
 
 1. **Compile check** (under 30 seconds):
    ```powershell
-   py -3.10 -m py_compile src\project_core.py src\run_improved_9_vol_targeted.py ^
-       src\run_multi_comparison_test.py src\aggregate_all_strategies.py ^
+   py -3.10 -m py_compile src\project_core.py src\       src\run_multi_comparison_test.py src\aggregate_all_strategies.py ^
        src\make_presentation_figures.py
    py -3.10 -c "import sys; sys.path.insert(0, 'src'); import project_core; print('OK')"
    ```
@@ -328,8 +307,7 @@ After implementation:
    py -3.10 src\run_improved_6_hzz_trend.py
    py -3.10 src\run_improved_7_costs.py
    py -3.10 src\run_improved_8_top_n_sizing.py
-   py -3.10 src\run_improved_9_vol_targeted.py
-   py -3.10 src\aggregate_all_strategies.py
+      py -3.10 src\aggregate_all_strategies.py
    py -3.10 src\run_multi_comparison_test.py
    py -3.10 src\make_presentation_figures.py
    ```

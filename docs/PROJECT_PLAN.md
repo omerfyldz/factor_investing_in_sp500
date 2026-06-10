@@ -44,7 +44,6 @@ Before this fix, the project reported Sharpes computed over all 240 months of th
 | 6 | `improved_6_hzz_cross_sectional_trend_stop_take_top10` | improved 4 | Trend → HZZ cross-sectional | Paper-faithful; lower per-trade alpha than improved 4 |
 | 7 | `improved_7_time_varying_cost_sensitivity` | improved 4 + improved 6 | Adds year-keyed transaction-cost schedule | Cost-sensitivity study, not a new strategy |
 | 8 | `improved_8_equal_weight_top20` | improved 4 | top-N 10→20, sizing → 5%-of-equity | Wealth-maximizer; lower Sharpe than improved 4 |
-| 9 | `improved_9_vol_targeted_top20` | improved 8 | sizing → inverse-vol weighted (top-20) | Risk-budget sizing; low-vol names get more capital |
 
 ## Execution Model
 
@@ -76,7 +75,6 @@ For risk-managed strategies, rebalance exits cancel live protective orders befor
 - `src/run_improved_6_hzz_trend.py` — focused improved 6 HZZ.
 - `src/run_improved_7_costs.py` — focused improved 7 cost sensitivity.
 - `src/run_improved_8_top_n_sizing.py` — focused improved 8 equal-weight top-20.
-- `src/run_improved_9_vol_targeted.py` — focused improved 9 volatility-targeted sizing.
 - `src/aggregate_all_strategies.py` — unified cross-strategy summary tables (metrics, walk-forward, MC, benchmark alpha) for all 9 strategies.
 - `src/run_multi_comparison_test.py` — Hansen SPA + Romano-Wolf StepM multi-comparison robustness test.
 - `src/make_presentation_figures.py` — builds 15+ presentation figures and summary tables from all 9 strategy outputs.
