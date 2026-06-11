@@ -37,7 +37,6 @@ IMPROVED_5_RESULTS_DIR = RESULTS_DIR / "improved_strategy_5"
 IMPROVED_6_RESULTS_DIR = RESULTS_DIR / "improved_strategy_6"
 IMPROVED_7_RESULTS_DIR = RESULTS_DIR / "improved_strategy_7"
 IMPROVED_8_RESULTS_DIR = RESULTS_DIR / "improved_strategy_8"
-IMPROVED_9_RESULTS_DIR = RESULTS_DIR / "improved_strategy_9"
 ROBUSTNESS_RESULTS_DIR = RESULTS_DIR / "robustness"
 COMPARISON_RESULTS_DIR = RESULTS_DIR / "comparison"
 FIGURES_DIR = ROOT / "figures"
@@ -64,9 +63,6 @@ IMPROVED_5_STRATEGY_NAME = "improved_5_regime_filtered_stop_take_top10"
 IMPROVED_6_STRATEGY_NAME = "improved_6_hzz_cross_sectional_trend_stop_take_top10"
 IMPROVED_7_STRATEGY_NAME = "improved_7_time_varying_cost_sensitivity"
 IMPROVED_8_STRATEGY_NAME = "improved_8_equal_weight_top20"
-IMPROVED_9_STRATEGY_NAME = "improved_9_vol_targeted_top20"
-VOL_LOOKBACK_DAYS = 63       # ~3 months of trading days
-VOL_FLOOR_ANN = 0.05         # annualized vol floor (5%) to prevent extreme inverse weights
 HZZ_RATIO_COLS = [f"ma_ratio_{w}" for w in MA_WINDOWS]
 HZZ_BETA_COLS = [f"beta_ma_ratio_{w}" for w in MA_WINDOWS]
 HZZ_SMOOTH_WINDOW = 12
@@ -92,14 +88,8 @@ class StrategySpec:
     # Position-sizing rule.
     #   "fixed_cash"        — original CASH_PER_TRADE behavior used by base and improveds 1-7
     #   "percent_of_equity" — equal-weight 1/N as percent of current equity (DGU 2009; improved 8)
-    #   "vol_targeted"      — inverse-volatility weighted within the held basket (improved 9).
-    #                         Sized so high-vol names get smaller weights, normalized so the
-    #                         held basket consumes ``top_n * sizing_target_pct`` of equity total.
     sizing_method: str = "fixed_cash"
     sizing_target_pct: float = 0.10
-    # Volatility-targeted sizing parameters (used only when sizing_method == "vol_targeted").
-    vol_lookback_days: int = VOL_LOOKBACK_DAYS
-    vol_floor_ann: float = VOL_FLOOR_ANN
     notes: str = ""
 
 
@@ -118,7 +108,6 @@ def ensure_dirs() -> None:
         IMPROVED_6_RESULTS_DIR,
         IMPROVED_7_RESULTS_DIR,
         IMPROVED_8_RESULTS_DIR,
-        IMPROVED_9_RESULTS_DIR,
         ROBUSTNESS_RESULTS_DIR,
         COMPARISON_RESULTS_DIR,
         FIGURES_DIR,
@@ -1097,30 +1086,16 @@ def is_assignment_scope_strategy(spec: StrategySpec) -> bool:
 def position_size_for_spec(
     spec: StrategySpec,
     equity: float,
-    vol_weights: pd.Series | None = None,
-) -> pd.Series | float:
-    """Per-position dollar size implied by the spec's sizing rule.
-
-    Returns a Series indexed by the selected tickers when ``sizing_method`` is
-    ``"vol_targeted"`` (per-position dollars vary across the basket), otherwise
-    a scalar applied uniformly to every selected position.
-    """
-    if spec.sizing_method == "vol_targeted":
-        if vol_weights is None:
-            raise ValueError("vol_targeted sizing requires vol_weights argument")
-        # Per-name dollars = (basket_target_pct) * equity * vol_weight_i
-        # where vol_weight sums to 1 across the basket and basket_target_pct is
-        # top_n * sizing_target_pct (e.g. 20 * 5% = 100% of equity at full basket).
-        basket_target_pct = float(spec.top_n) * float(spec.sizing_target_pct)
-        return float(equity) * basket_target_pct * vol_weights
+) -> float:
+    """Per-position dollar size implied by the spec's sizing rule."""
     if spec.sizing_method == "percent_of_equity":
         return float(spec.sizing_target_pct) * float(equity)
     return float(CASH_PER_TRADE)
 
 
 def select_positions_for_spec(g: pd.DataFrame, spec: StrategySpec, equity: float) -> pd.DataFrame:
-    if spec.sizing_method in ("percent_of_equity", "vol_targeted"):
-        # Dynamic sizing modes scale with equity and can always fit ``top_n``
+    if spec.sizing_method == "percent_of_equity":
+        # Dynamic sizing scales with equity and can always fit ``top_n``
         # positions. Cash buffer is implicit at ``1 - top_n * sizing_target_pct``.
         max_positions = spec.top_n
     else:
@@ -1130,70 +1105,6 @@ def select_positions_for_spec(g: pd.DataFrame, spec: StrategySpec, equity: float
         return g.iloc[0:0].copy()
     ranked = g.sort_values("score", ascending=False).copy()
     return ranked.head(n)
-
-
-def compute_inverse_vol_weights(
-    selected_tickers: list[str],
-    month: pd.Timestamp,
-    daily_prices: pd.DataFrame,
-    lookback_days: int = VOL_LOOKBACK_DAYS,
-    vol_floor_ann: float = VOL_FLOOR_ANN,
-) -> pd.Series:
-    """Compute inverse-volatility portfolio weights for a set of selected tickers.
-
-    Realized annualized volatility is computed from each ticker's daily log
-    returns over the trailing ``lookback_days`` trading days strictly before
-    ``month``. Vols are floored at ``vol_floor_ann`` (annualized) to prevent
-    extreme inverse weights from very-low-vol names. Weights are normalized so
-    they sum to 1 across the basket.
-
-    Parameters
-    ----------
-    selected_tickers : list[str]
-        Tickers in the basket.
-    month : pd.Timestamp
-        Signal month-end. Vols use data strictly before this date.
-    daily_prices : pd.DataFrame
-        Raw price panel with columns ``ticker``, ``date``, ``adjClose``.
-    lookback_days : int
-        Window of trading days for realized vol estimation.
-    vol_floor_ann : float
-        Lower bound on annualized vol used as denominator.
-
-    Returns
-    -------
-    pd.Series
-        Weights indexed by ticker, summing to 1.0. If a ticker has no valid
-        history, equal-weight is assigned as a fallback for that ticker.
-    """
-    if not selected_tickers:
-        return pd.Series(dtype=float)
-    cutoff = pd.Timestamp(month)
-    sub = daily_prices[
-        daily_prices["ticker"].isin(selected_tickers)
-        & (daily_prices["date"] < cutoff)
-    ][["ticker", "date", "adjClose"]].copy()
-    sub = sub.sort_values(["ticker", "date"])
-    inv_vols: dict[str, float] = {}
-    for ticker in selected_tickers:
-        g = sub[sub["ticker"].eq(ticker)].tail(lookback_days + 1)
-        if len(g) < max(20, lookback_days // 3):
-            inv_vols[ticker] = np.nan
-            continue
-        log_rets = np.log(g["adjClose"].astype(float)).diff().dropna()
-        if log_rets.empty or log_rets.std(ddof=1) == 0 or not np.isfinite(log_rets.std(ddof=1)):
-            inv_vols[ticker] = np.nan
-            continue
-        ann_vol = float(log_rets.std(ddof=1)) * np.sqrt(252.0)
-        ann_vol = max(ann_vol, float(vol_floor_ann))
-        inv_vols[ticker] = 1.0 / ann_vol
-    s = pd.Series(inv_vols, dtype=float)
-    if s.notna().sum() == 0:
-        # Total fallback to equal weight
-        return pd.Series(1.0 / len(selected_tickers), index=selected_tickers)
-    # Names without enough history get the median inverse vol (defensive fallback)
-    s = s.fillna(s.median())
-    return s / s.sum()
 
 
 # --- Time-varying transaction cost schedule (improved 7) -----------------------------
@@ -1315,14 +1226,9 @@ def simulate_vector_strategy(
         Per-year transaction-cost schedule from :func:`transaction_cost_schedule`.
         If ``None`` (default), no costs are deducted.
     daily_prices : DataFrame, optional
-        Required only when ``spec.sizing_method == "vol_targeted"``. Daily price
-        panel with columns ``ticker``, ``date``, ``adjClose``; used to compute
-        per-stock trailing realized volatility for inverse-vol weighting.
+        Unused; retained for backwards-compatible signature with callers.
     """
-    if spec.sizing_method == "vol_targeted" and daily_prices is None:
-        raise ValueError(
-            "spec.sizing_method='vol_targeted' requires daily_prices to be passed."
-        )
+    _ = daily_prices  # retained for backwards-compatible signature
     tmp = panel.copy()
     tmp["score"] = score_for_spec(tmp, spec)
     rows: list[dict[str, Any]] = []
@@ -1340,49 +1246,21 @@ def simulate_vector_strategy(
         comm_per_side, slip_per_side = cost_for_month(cost_schedule, month)
         round_trip_drag = 2.0 * (comm_per_side + slip_per_side)
 
-        # Position-size determination — scalar for fixed/percent rules, Series for vol-targeted
-        if spec.sizing_method == "vol_targeted":
-            if not selected.empty:
-                tickers = selected["ticker"].tolist()
-                vol_weights = compute_inverse_vol_weights(
-                    tickers,
-                    pd.Timestamp(month),
-                    daily_prices,
-                    lookback_days=spec.vol_lookback_days,
-                    vol_floor_ann=spec.vol_floor_ann,
-                )
-                per_position_dollars = position_size_for_spec(spec, equity, vol_weights=vol_weights)
-                # Align per_position_dollars to selected order
-                selected_per_position = per_position_dollars.reindex(selected["ticker"].values).values
-            else:
-                per_position_dollars = 0.0
-                selected_per_position = None
-        else:
-            scalar_size = position_size_for_spec(spec, equity)
-            per_position_dollars = scalar_size
-            selected_per_position = None
+        per_position_dollars = position_size_for_spec(spec, equity)
 
         if selected.empty:
             pnl = 0.0
             ret = 0.0
             cost_dollars = 0.0
-            per_position_dollars_log = (
-                float(per_position_dollars) if not isinstance(per_position_dollars, pd.Series) else float("nan")
-            )
+            per_position_dollars_log = float(per_position_dollars)
         else:
             selected["gross_stock_return"] = stop_take_return(selected, spec.stop_loss, spec.take_profit)
             selected["cost_drag_per_holding"] = round_trip_drag
             selected["realized_stock_return"] = selected["gross_stock_return"] - round_trip_drag
-            if selected_per_position is not None:
-                selected["allocated_cash"] = selected_per_position
-                pnl = float(np.nansum(selected_per_position * selected["realized_stock_return"].values))
-                cost_dollars = float(np.nansum(selected_per_position) * round_trip_drag)
-                per_position_dollars_log = float(np.nanmean(selected_per_position))
-            else:
-                selected["allocated_cash"] = float(per_position_dollars)
-                pnl = float(per_position_dollars) * float(selected["realized_stock_return"].sum())
-                cost_dollars = float(per_position_dollars) * round_trip_drag * len(selected)
-                per_position_dollars_log = float(per_position_dollars)
+            selected["allocated_cash"] = float(per_position_dollars)
+            pnl = float(per_position_dollars) * float(selected["realized_stock_return"].sum())
+            cost_dollars = float(per_position_dollars) * round_trip_drag * len(selected)
+            per_position_dollars_log = float(per_position_dollars)
             selected["cash_weight"] = (
                 selected["allocated_cash"] / equity if equity > 0 else np.nan
             )
@@ -1462,63 +1340,6 @@ class EquityPercentSizer(bt.Sizer):
             return 0
         portfolio_value = self.broker.getvalue()
         dollars_per_position = float(self.p.target_pct) * float(portfolio_value)
-        size = int(dollars_per_position / close_price)
-        return max(size, 0)
-
-
-class VolatilityTargetedSizer(bt.Sizer):
-    """Inverse-volatility position sizing for the Backtrader engine.
-
-    Each position is sized at ``(1/vol_i) / sum(1/vol_j across the basket) *
-    basket_target_pct * portfolio_value`` where ``vol_i`` is the annualized
-    realized volatility computed from ``data``'s trailing ``vol_lookback_days``
-    of daily log returns, floored at ``vol_floor_ann`` to prevent extreme
-    inverse weights. ``basket_target_pct`` represents the total fraction of
-    portfolio capital to deploy in the basket (typically 1.0 = fully invested).
-
-    This sizer maintains an internal cache of inverse vols and renormalizes
-    each rebalance period using the live broker positions plus pending targets.
-    For simplicity in the Backtrader integration, this sizer sizes each name
-    INDEPENDENTLY relative to its own inverse vol scaled by ``target_pct``
-    (interpreted as the per-name allocation when vols are equal). The vector
-    simulator does the basket-level normalization, which is the more rigorous
-    treatment; Backtrader sizing here is a per-name approximation that scales
-    the percent-of-equity rule by inverse vol.
-    """
-
-    params = (
-        ("target_pct", 0.05),                 # nominal per-position equity fraction
-        ("vol_lookback_days", VOL_LOOKBACK_DAYS),
-        ("vol_floor_ann", VOL_FLOOR_ANN),
-        ("median_vol_ann", 0.25),             # reference vol used as the denominator scale
-    )
-
-    def _getsizing(self, comminfo, cash, data, isbuy):
-        close_price = data.close[0]
-        if close_price <= 0:
-            return 0
-        portfolio_value = self.broker.getvalue()
-        # Compute realized vol from data's trailing window
-        lookback = int(self.p.vol_lookback_days)
-        try:
-            closes = np.array([float(data.close[-i]) for i in range(lookback + 1)])
-        except Exception:
-            ann_vol = float(self.p.median_vol_ann)
-        else:
-            closes = closes[~np.isnan(closes) & (closes > 0)]
-            if len(closes) < max(20, lookback // 3):
-                ann_vol = float(self.p.median_vol_ann)
-            else:
-                log_rets = np.diff(np.log(closes))
-                if log_rets.size < 2:
-                    ann_vol = float(self.p.median_vol_ann)
-                else:
-                    std = float(np.std(log_rets, ddof=1))
-                    ann_vol = max(std * np.sqrt(252.0), float(self.p.vol_floor_ann))
-        # Scale: position dollars = target_pct * portfolio_value * (median_vol / ann_vol)
-        # This way a name with median vol gets target_pct exposure; high-vol names get less.
-        scale = float(self.p.median_vol_ann) / ann_vol
-        dollars_per_position = float(self.p.target_pct) * float(portfolio_value) * scale
         size = int(dollars_per_position / close_price)
         return max(size, 0)
 
@@ -2055,8 +1876,6 @@ def run_backtrader_daily_stop_take(
     output_dir: Path | None = None,
     sizing_method: str = "fixed_cash",
     sizing_target_pct: float = 0.10,
-    vol_lookback_days: int = VOL_LOOKBACK_DAYS,
-    vol_floor_ann: float = VOL_FLOOR_ANN,
 ) -> dict[str, pd.DataFrame]:
     print(f"Running daily Backtrader native stop/limit strategy: {name}...")
     if stop_loss is None and take_profit is None:
@@ -2065,14 +1884,7 @@ def run_backtrader_daily_stop_take(
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(INITIAL_CASH)
     cerebro.broker.setcommission(commission=0.0)
-    if sizing_method == "vol_targeted":
-        cerebro.addsizer(
-            VolatilityTargetedSizer,
-            target_pct=sizing_target_pct,
-            vol_lookback_days=vol_lookback_days,
-            vol_floor_ann=vol_floor_ann,
-        )
-    elif sizing_method == "percent_of_equity":
+    if sizing_method == "percent_of_equity":
         cerebro.addsizer(EquityPercentSizer, target_pct=sizing_target_pct)
     else:
         cerebro.addsizer(FixedCashSizer, cash_per_trade=CASH_PER_TRADE)
@@ -2321,9 +2133,7 @@ def monte_carlo_random_portfolios(
         month: g.loc[g["eligible"], ["ticker", "GICS Sector", "next_open", "next_high", "next_low", "next_ret_oc", "regime_on"]].dropna(subset=["ticker", "next_ret_oc"]).reset_index(drop=True)
         for month, g in panel.groupby("month", sort=True)
     }
-    use_vol = base_spec.sizing_method == "vol_targeted"
-    if use_vol and daily_prices is None:
-        raise ValueError("vol_targeted Monte Carlo requires daily_prices.")
+    _ = daily_prices  # unused; preserved for caller compatibility
     for sim in range(n_sims):
         equity = INITIAL_CASH
         rows_this_sim: list[dict[str, Any]] = []
@@ -2335,7 +2145,7 @@ def monte_carlo_random_portfolios(
             if base_spec.regime_filter and not month_regime_is_on(g):
                 rows_this_sim.append({"month": month, "portfolio_return": 0.0})
                 continue
-            if base_spec.sizing_method in ("percent_of_equity", "vol_targeted"):
+            if base_spec.sizing_method == "percent_of_equity":
                 max_positions = base_spec.top_n
             else:
                 max_positions = max(0, int(equity // CASH_PER_TRADE))
@@ -2346,20 +2156,8 @@ def monte_carlo_random_portfolios(
             picks = rng.choice(len(g), size=n, replace=False)
             selected = g.iloc[picks].copy()
             realized = stop_take_return(selected, base_spec.stop_loss, base_spec.take_profit)
-            if use_vol:
-                vol_weights = compute_inverse_vol_weights(
-                    selected["ticker"].tolist(),
-                    pd.Timestamp(month),
-                    daily_prices,
-                    lookback_days=base_spec.vol_lookback_days,
-                    vol_floor_ann=base_spec.vol_floor_ann,
-                )
-                per_position_dollars = position_size_for_spec(base_spec, equity, vol_weights=vol_weights)
-                per_position_arr = per_position_dollars.reindex(selected["ticker"].values).values
-                pnl = float(np.nansum(per_position_arr * realized.values))
-            else:
-                per_position_dollars = position_size_for_spec(base_spec, equity)
-                pnl = float(per_position_dollars) * float(realized.sum())
+            per_position_dollars = position_size_for_spec(base_spec, equity)
+            pnl = float(per_position_dollars) * float(realized.sum())
             ret = pnl / equity if equity else 0.0
             equity += pnl
             rows_this_sim.append({"month": month, "portfolio_return": ret})
@@ -2699,90 +2497,9 @@ def make_figures(
     index_monthly: pd.DataFrame,
     final_strategy_name: str | None = None,
 ) -> None:
-    print("Creating figures...")
-    # Portfolio-sort factor cumulative returns
-    fig, ax = plt.subplots(figsize=(11, 6))
-    for factor, g in portfolio.groupby("factor", sort=True):
-        g = g.sort_values("month")
-        ax.plot(g["month"], (1 + g["portfolio_fmp_return"]).cumprod(), label=factor)
-    ax.set_title("Portfolio-Sort Factor-Mimicking Portfolios")
-    ax.set_ylabel("Cumulative return, gross")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "factor_portfolio_cumulative_returns.png", dpi=160)
-    plt.close(fig)
-
-    fig, ax = plt.subplots(figsize=(11, 6))
-    for factor, g in regression.groupby("factor", sort=True):
-        g = g.sort_values("month")
-        ax.plot(g["month"], (1 + g["regression_fmp_return"]).cumprod(), label=factor)
-    ax.set_title("Regression-Based Factor Returns")
-    ax.set_ylabel("Cumulative return, gross")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "factor_regression_cumulative_returns.png", dpi=160)
-    plt.close(fig)
-
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-    sns.barplot(data=ic, x="factor", y="ic", ax=axes[0], errorbar=None)
-    axes[0].set_title("Average Raw IC")
-    axes[0].tick_params(axis="x", rotation=30)
-    sns.barplot(data=ic, x="factor", y="rank_ic", ax=axes[1], errorbar=None)
-    axes[1].set_title("Average Rank IC")
-    axes[1].tick_params(axis="x", rotation=30)
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "ic_rank_ic_summary.png", dpi=160)
-    plt.close(fig)
-
-    fig, ax = plt.subplots(figsize=(11, 6))
-    final_name = final_strategy_name or strategy_metrics.iloc[0]["name"]
-    for name in [BASE_STRATEGY_NAME, IMPROVED_STRATEGY_NAME, IMPROVED_2_STRATEGY_NAME, final_name]:
-        g = strategy_curves[strategy_curves["strategy"].eq(name)].sort_values("month")
-        if not g.empty:
-            ax.plot(g["month"], g["equity"], label=name)
-    bench = index_monthly[["month", "close"]].dropna().copy()
-    bench = bench[bench["month"].between(strategy_curves["month"].min(), strategy_curves["month"].max())]
-    if not bench.empty:
-        bench["bench_equity"] = INITIAL_CASH * bench["close"] / bench["close"].iloc[0]
-        ax.plot(bench["month"], bench["bench_equity"], label="^GSPC buy-and-hold", linestyle="--")
-    ax.set_title("Strategy Equity Curves vs S&P 500")
-    ax.set_ylabel("Portfolio value")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "strategy_equity_vs_benchmark.png", dpi=160)
-    plt.close(fig)
-
-    fig, ax = plt.subplots(figsize=(11, 5))
-    for name in [BASE_STRATEGY_NAME, IMPROVED_STRATEGY_NAME, IMPROVED_2_STRATEGY_NAME, final_name]:
-        g = strategy_curves[strategy_curves["strategy"].eq(name)].sort_values("month")
-        if not g.empty:
-            ax.plot(g["month"], make_drawdown(g["equity"]), label=name)
-    ax.set_title("Strategy Drawdowns")
-    ax.set_ylabel("Drawdown")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "strategy_drawdowns.png", dpi=160)
-    plt.close(fig)
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-    order = strategy_metrics.sort_values("annualized_sharpe", ascending=False)
-    sns.barplot(data=order, y="name", x="annualized_sharpe", ax=ax, color="#4C78A8")
-    ax.set_title("Improvement Tests: Annualized Sharpe")
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "strategy_improvement_sharpe.png", dpi=160)
-    plt.close(fig)
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.hist(monte_carlo["annualized_sharpe"].dropna(), bins=40, color="#8DA0CB", edgecolor="white")
-    strategy_sharpe = monte_carlo["strategy_sharpe"].iloc[0]
-    p_value = monte_carlo["p_value"].iloc[0]
-    ax.axvline(strategy_sharpe, color="red", linewidth=2, label=f"base Sharpe = {strategy_sharpe:.2f}")
-    ax.set_title(f"Monte Carlo Random Portfolio Sharpe Distribution (p={p_value:.3f})")
-    ax.set_xlabel("Annualized Sharpe")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "monte_carlo_sharpe_histogram.png", dpi=160)
-    plt.close(fig)
+    # Figure creation is centralized in src/make_presentation_figures.py.
+    # This function is kept as a no-op so run_project.py stays callable end-to-end.
+    print("Skipping figure creation (handled by make_presentation_figures.py).")
 
 
 def write_project_docs(
@@ -3135,7 +2852,6 @@ def make_presentation(
                 "Imp 5: Regime filter (rejected).",
                 "Imp 6: HZZ cross-sectional trend methodology.",
                 "Imp 8: Equal-weight 5% per position (top 20).",
-                "Imp 9: Inverse-vol-targeted sizing (top 20).",
             ],
         )
         add_image_slide(pdf, "Factor Portfolio Performance", FIGURES_DIR / "factor_portfolio_cumulative_returns.png")
@@ -3151,10 +2867,7 @@ def make_presentation(
         add_image_slide(pdf, "Sizing: Fixed vs Eq-Weight vs Vol-Tgt", FIGURES_DIR / "imp4_vs_8_vs_9_comparison.png")
         add_image_slide(pdf, "Position Concentration (HHI)", FIGURES_DIR / "position_concentration_hhi.png")
         
-        # Original single-strategy figures
-        add_image_slide(pdf, "Strategy vs Benchmark (Staged)", FIGURES_DIR / "strategy_equity_vs_benchmark.png")
-        add_image_slide(pdf, "Drawdowns (Staged)", FIGURES_DIR / "strategy_drawdowns.png")
-        add_image_slide(pdf, "Monte Carlo Robustness", FIGURES_DIR / "monte_carlo_sharpe_histogram.png")
+        # (Superseded staged-ladder slides removed; all_strategies_* slides cover them.)
         
         add_text_slide(
             pdf,

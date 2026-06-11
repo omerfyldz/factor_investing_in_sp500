@@ -173,56 +173,10 @@ def make_figures(
     cost_schedule_long: pd.DataFrame,
     yearly_drag: pd.DataFrame,
 ) -> None:
-    core.FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-
-    # 1. Equity curves under each scenario, two-panel (one per strategy)
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), constrained_layout=True, sharey=False)
-    for ax, strategy_label in zip(axes, ["improved_4", "improved_6"]):
-        for scenario in SCENARIOS:
-            sub = all_curves[
-                (all_curves["strategy_label"].eq(strategy_label))
-                & (all_curves["cost_scenario"].eq(scenario))
-            ].sort_values("month")
-            if sub.empty:
-                continue
-            ax.plot(pd.to_datetime(sub["month"]), sub["equity"], label=scenario)
-        ax.set_title(f"{strategy_label} equity under cost scenarios")
-        ax.set_xlabel("Month")
-        ax.set_ylabel("Equity ($)")
-        ax.legend(title="Scenario")
-        ax.grid(True, alpha=0.3)
-    fig.savefig(core.FIGURES_DIR / "improved7_cost_scenarios_equity.png", dpi=160)
-    plt.close(fig)
-
-    # 2. Per-year cost drag, two-panel (one per strategy), central scenario
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), constrained_layout=True, sharey=True)
-    for ax, strategy_label in zip(axes, ["improved_4", "improved_6"]):
-        sub = yearly_drag[
-            (yearly_drag["strategy_label"].eq(strategy_label))
-            & (yearly_drag["cost_scenario"].eq("central"))
-        ].sort_values("year")
-        if sub.empty:
-            continue
-        ax.bar(sub["year"], sub["cost_drag_pct_of_avg_equity"] * 100, color="steelblue")
-        ax.set_title(f"{strategy_label} per-year cost drag (central scenario)")
-        ax.set_xlabel("Year")
-        ax.set_ylabel("Cost drag, % of avg equity")
-        ax.grid(True, axis="y", alpha=0.3)
-    fig.savefig(core.FIGURES_DIR / "improved7_cost_drag_by_year.png", dpi=160)
-    plt.close(fig)
-
-    # 3. The cost schedule itself
-    fig, ax = plt.subplots(figsize=(10, 5), constrained_layout=True)
-    for scenario in SCENARIOS:
-        sub = cost_schedule_long[cost_schedule_long["scenario"].eq(scenario)].sort_values("year")
-        ax.plot(sub["year"], sub["round_trip_bps"], marker="o", label=scenario)
-    ax.set_title("Time-varying transaction-cost schedule (round-trip basis points)")
-    ax.set_xlabel("Year")
-    ax.set_ylabel("Round-trip cost (bps)")
-    ax.legend(title="Scenario")
-    ax.grid(True, alpha=0.3)
-    fig.savefig(core.FIGURES_DIR / "improved7_cost_schedule.png", dpi=160)
-    plt.close(fig)
+    # Figure creation moved to src/make_presentation_figures.py; this runner
+    # only persists CSVs (vector_equity_curves, yearly_cost_drag, cost_schedule),
+    # which the figure script reads.
+    return
 
 
 def write_doc(grid: pd.DataFrame, cost_schedule_long: pd.DataFrame, yearly_drag: pd.DataFrame) -> None:

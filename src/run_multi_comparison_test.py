@@ -2,7 +2,7 @@
 
 This is NOT a strategy. It is a statistical robustness layer (parallel to
 improved 7's cost-sensitivity analysis) that addresses the multi-comparison
-problem: we tested 9 strategy variants and report the best, so any raw
+problem: we tested 8 strategy variants and report the best, so any raw
 Monte Carlo p-value is biased downward. Hansen's (2005) SPA test and the
 Romano-Wolf (2005) StepM procedure correct for this by controlling the
 family-wise error rate across the full search space of strategies tried.
@@ -21,7 +21,7 @@ Outputs:
   matrix used by both tests
 - ``docs/MULTI_COMPARISON_TEST.md`` -- methodology and interpretation
 
-Run AFTER all 9 strategies have completed and ``aggregate_all_strategies.py``
+Run AFTER all 8 strategies have completed and ``aggregate_all_strategies.py``
 has run. Runtime: ~5 minutes (bootstrap is the bottleneck).
 """
 from __future__ import annotations
@@ -52,7 +52,6 @@ STRATEGY_FOLDERS: dict[str, Path] = {
     "improved_5": core.IMPROVED_5_RESULTS_DIR,
     "improved_6": core.IMPROVED_6_RESULTS_DIR,
     "improved_8": core.IMPROVED_8_RESULTS_DIR,
-    "improved_9": core.IMPROVED_9_RESULTS_DIR,
 }
 
 BOOTSTRAP_REPS = 10_000
@@ -209,13 +208,13 @@ def write_doc(
     content = f"""# Multi-Comparison Robustness Test — Hansen SPA + Romano-Wolf StepM
 
 This is **not a strategy.** It is a statistical robustness layer that
-addresses the multi-comparison problem: we tested 9 strategy variants
-(base + improved 1-6, 8, 9) and report the best, so any single Monte Carlo
+addresses the multi-comparison problem: we tested 8 strategy variants
+(base + improved 1-6, 8) and report the best, so any single Monte Carlo
 p-value is biased downward by the search-space size.
 
 ## Why this matters
 
-With 9 strategies tested at the 5% significance level, the probability that
+With 8 strategies tested at the 5% significance level, the probability that
 at least ONE strategy beats random by chance is roughly
 `1 - (1 - 0.05)^9 = 37%`. Without correction, the project's per-strategy
 Monte Carlo p-values are not trustworthy as standalone significance claims.
@@ -230,7 +229,7 @@ space?** It uses a stationary block bootstrap of the loss differences between
 each model and the benchmark, then computes a multi-comparison-corrected
 p-value.
 
-**Inputs**: 9 strategy monthly returns × {strategy_returns.shape[0]} months from
+**Inputs**: 8 strategy monthly returns × {strategy_returns.shape[0]} months from
 {strategy_returns.index.min().date()} to {strategy_returns.index.max().date()}
 (the common evaluation window). Benchmark is ^GSPC monthly returns over the
 same window. Loss function = `-excess_return` (lower loss = better strategy).

@@ -145,19 +145,9 @@ def save_grid_artifacts(grid: pd.DataFrame, selected: pd.Series) -> None:
 
 
 def make_heatmap(grid: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5), constrained_layout=True)
-    for ax, metric, title in [
-        (axes[0], "train_sharpe", "Train Sharpe"),
-        (axes[1], "test_sharpe", "Test Sharpe Reported After Selection"),
-    ]:
-        pivot = grid.pivot(index="stop_loss", columns="take_profit", values=metric).sort_index(ascending=True)
-        sns.heatmap(pivot, annot=True, fmt=".2f", cmap="viridis", ax=ax, cbar_kws={"label": metric})
-        ax.set_title(title)
-        ax.set_xlabel("Take-profit")
-        ax.set_ylabel("Stop-loss")
-    core.FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-    fig.savefig(core.FIGURES_DIR / "improved4_stop_take_sensitivity_heatmap.png", dpi=160)
-    plt.close(fig)
+    # Figure creation moved to src/make_presentation_figures.py; this runner
+    # only persists the sensitivity-grid CSV, which the figure script reads.
+    return
 
 
 def write_improved_4_note(grid: pd.DataFrame, selected: pd.Series, bt_metrics: pd.DataFrame) -> None:

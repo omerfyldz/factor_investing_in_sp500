@@ -13,7 +13,7 @@ The project is written so that someone new to factor investing can read the READ
 3. [Research Foundation](#3-research-foundation)
 4. [Data](#4-data)
 5. [Factor Construction](#5-factor-construction)
-6. [The Strategy Ladder — Eight Variants](#6-the-strategy-ladder--nine-variants)
+6. [The Strategy Ladder — Eight Variants](#6-the-strategy-ladder--eight-variants)
 7. [Execution Model](#7-execution-model)
 8. [Evaluation Methodology — Common Window Fix](#8-evaluation-methodology--common-window-fix)
 9. [Results](#9-results)
@@ -231,6 +231,10 @@ The project's organizing principle is **one-change-at-a-time**: every improvemen
 
 **improved 8.** Two mechanically-coupled changes on top of improved 4: top-N 10 → 20 and sizing fixed-$100K → equal-weight 5%-of-equity. The changes are coupled because $1M of starting capital cannot fund 20 fixed-$100K positions; sizing had to switch for top-N expansion to be meaningful. Justified by DeMiguel-Garlappi-Uppal (2009) and the Invesco RSP ETF industry analog.
 
+The kept-path (green) and rejected branches (grey, ✗) of the ladder, with delta-Sharpe arrows and the two co-winners crowned:
+
+![Improvement waterfall](figures/12_improvement_waterfall.png)
+
 ---
 
 ## 7. Execution Model
@@ -324,6 +328,14 @@ Every published factor paper restricts cross-strategy comparison to a common eva
 | **`improved_8`** | +1.03 | +1.11 | -10.9% | -11.9% | **$3.63M** | $3.09M | 0.306 | **16.86** |
 
 Bold = best-in-column among honest variants (base excluded for the look-ahead reason).
+
+The same scoreboard with conditional colouring (green = good, red = bad) plus the multi-comparison "Beats `^GSPC`?" verdict:
+
+![8-strategy scoreboard](figures/T2_strategy_scoreboard.png)
+
+All eight strategy equity curves with co-winners highlighted (Imp 4 in red, Imp 8 in gold) and the rejected branches greyed out:
+
+![Strategy ladder — equity & drawdown](figures/03_strategy_ladder.png)
 
 Final-equity numbers differ between vector (vec_final_eq) and Backtrader (bt_final) because (a) the vector engine is a pure return-stream simulator restating wealth from $1M at the eval start, while (b) Backtrader is a physical broker simulator that tracks the absolute portfolio value across all years (including pre-eval idle periods sitting at $1M cash). Sharpes use only the eval window in both engines, so they are directly comparable.
 
@@ -445,7 +457,11 @@ When running the robustness test across our 8 strategies (`base` through `improv
 - The **Hansen SPA consistent p-value is 0.6737**. This means we **cannot** reject the null hypothesis that no strategy outperforms the benchmark after multi-comparison correction. 
 - The **Romano-Wolf StepM procedure** confirms this: **none** of the individual strategies show statistically significant outperformance at the 5% level once the search space size is accounted for.
 
-This is a very powerful and honest finding: despite having seemingly good single-test Sharpe ratios, once we account for the fact that we tried 8 different variations (base, expanding, stop/take, IC weighting, walk-forward, regime, HZZ, equal-weight), the best result is indistinguishable from data mining luck at the 5% level when benchmarked against ^GSPC. 
+This is a very powerful and honest finding: despite having seemingly good single-test Sharpe ratios, once we account for the fact that we tried 8 different variations (base, expanding, stop/take, IC weighting, walk-forward, regime, HZZ, equal-weight), the best result is indistinguishable from data mining luck at the 5% level when benchmarked against ^GSPC.
+
+Visualised as a forest plot — annualised excess return ± 95% block-bootstrap CI per strategy. Every point estimate is negative and every CI crosses zero:
+
+![Robustness verdict forest](figures/07_robustness_verdict_forest.png)
 
 See `results/robustness/` for the exact outputs.
 
@@ -454,6 +470,10 @@ See `results/robustness/` for the exact outputs.
 ## 11. Improved 8 — Equal-Weight Top-20 (1/N Sizing)
 
 This is the project's most recent and most academically-faithful strategy variant. It deserves its own section because it changes the project's position-sizing rule for the first time.
+
+Imp 4 (risk-adjusted winner) vs Imp 8 (wealth-maximization winner) — the two-co-winner story in one panel: equity, edge accumulation, rolling Sharpe, annual returns, position-count over time, and per-metric chips:
+
+![Imp 4 vs Imp 8 head-to-head](figures/15_imp4_vs_imp8_panel.png)
 
 ### 11.1 What it does
 
@@ -620,8 +640,8 @@ Running the pipeline today on the same machine should produce bit-identical outp
 src/
   project_core.py                       — single-file core: all data loading, factor
                                           construction, vector strategies, Backtrader
-                                          engines, robustness tests, figures, doc
-                                          generation, presentation builder (~3,433 lines)
+                                          engines (FixedCashSizer + EquityPercentSizer),
+                                          robustness tests, doc generation (~3,200 lines)
   run_project.py                        — full pipeline entry point (base + improved 1-3)
   run_base_strategy.py                  — focused base rerun from processed data
   run_improved_strategy.py              — focused improved 1, 2, 3 rerun
@@ -662,8 +682,7 @@ Vector strategies:        score_for_spec, select_positions_for_spec,
                           position_size_for_spec, stop_take_return,
                           simulate_vector_strategy
 
-Backtrader:               FixedCashSizer, EquityPercentSizer, VolatilityTargetedSizer,
-                          compute_inverse_vol_weights,
+Backtrader:               FixedCashSizer, EquityPercentSizer,
                           MonthlySignalStrategy, DailySignalStopTakeStrategy,
                           run_backtrader, run_backtrader_daily_stop_take,
                           assert_backtrader_long_only
@@ -699,15 +718,19 @@ results/
   improved_strategy_7/          — improved 7 cost-sensitivity tables + figures
   improved_strategy_8/          — improved 8 outputs (equal-weight top-20)
   comparison/                   — all_strategies_metrics.csv, all_strategies_walk_forward.csv,
-                                    all_strategies_monte_carlo.csv, all_strategies_benchmark_alpha.csv,
-                                    annual_returns_table.csv, hit_rate_per_strategy.csv, tail_risk_metrics.csv
+                                    all_strategies_monte_carlo.csv, all_strategies_benchmark.csv,
+                                    all_strategies_return_correlation.csv,
+                                    annual_returns_table.csv, hit_rate_per_strategy.csv,
+                                    tail_risk_metrics.csv, best_worst_months_per_strategy.csv
   robustness/                   — hansen_spa_results.csv, romano_wolf_stepm_results.csv,
                                     strategy_excess_returns.csv (generated by run_multi_comparison_test.py)
   fmp_analysis/                 — factor-mimicking portfolio + IC summaries
-figures/                        — all PNG figures (equity curves, drawdowns, factor
-                                  returns, MC histogram, cost heatmap, etc.)
+figures/                        — 15 composite figures (01_factor_analysis_panel.png …
+                                  15_imp4_vs_imp8_panel.png) + 7 table PNGs (T1 … T7) +
+                                  factor_weight_evolution_imp3.png — 23 total
 presentation/
-  sp500_factor_investing_deck.pdf  — PDF presentation
+  main.tex                      — LaTeX Beamer deck (compile with lualatex; metropolis theme)
+  main.pdf                      — compiled output
 ```
 
 ---
@@ -718,7 +741,7 @@ In priority order.
 
 ### 16.1 Survivorship-bias-free panel via WRDS
 
-Former section 16.2, now the top priority. The user has WRDS access.
+Top priority. The user has WRDS access.
 
 ```text
 crsp.dsf                    — daily prices for every PERMNO (filtered to S&P 500 members)
@@ -732,23 +755,23 @@ A `wrds` Python connection downloads these into `data/raw/` as CSVs; a new `buil
 
 Expected impact: all Sharpes drop ~0.1–0.3 (honest disappearance of survivorship bias); the strategy rankings may shift; the absolute claims become *publishable* rather than "best-effort student work."
 
-### 16.3 Long-short paper-faithful HZZ portfolio
+### 16.2 Long-short paper-faithful HZZ portfolio
 
 Implement HZZ's actual portfolio: long Q5 / short Q1 on the cross-sectional predicted return, equal-weighted, monthly rebalanced. Compare against our long-only top-N versions.
 
-### 16.4 Factor orthogonalization
+### 16.3 Factor orthogonalization
 
 Regress trend on momentum each month and use the residual as `trend_orth_z` in the composite. Removes double-counting between momentum and trend signals.
 
-### 16.5 Sector concentration analysis
+### 16.4 Sector concentration analysis
 
 Measure GICS sector exposure of each strategy's holdings over time. Add sector caps if needed.
 
-### 16.6 Top-N sensitivity grid
+### 16.5 Top-N sensitivity grid
 
 With improved 8 establishing the equal-weight sizing baseline, run top-N sensitivity (top 10, 15, 20, 25, 30) under the same sizing rule. Map the diversification-vs-concentration frontier.
 
-### 16.7 Better fundamentals via Compustat
+### 16.6 Better fundamentals via Compustat
 
 WRDS gives access to Compustat fundamentals, which are the academic standard. ROE / P/E definitions become reproducible across studies.
 
@@ -792,7 +815,7 @@ WRDS gives access to Compustat fundamentals, which are the academic standard. RO
 
 - **Quantitativo blog: "Coding Trend Factor"** — independent HZZ replication used to verify our implementation matches the paper.
 - **Backtrader documentation** — `bt.Order.Stop`, `bt.Order.Limit`, OCO linking, `PercentSizerInt`.
-- **`arch.bootstrap.SPA`** — Python implementation of Hansen's SPA test (planned for improved 9).
+- **`arch.bootstrap.SPA` / `arch.bootstrap.StepM`** — Python implementations of Hansen's SPA and Romano-Wolf StepM tests used in `run_multi_comparison_test.py`.
 
 ---
 
