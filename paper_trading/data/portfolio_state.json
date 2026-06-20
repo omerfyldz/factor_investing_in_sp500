@@ -1,6 +1,17 @@
 {
-  "last_rebalance": null,
+  "last_rebalance": "2026-06-20",
   "improved_4": {
-    "holdings": []
+    "holdings": [
+      "CLX",
+      "SATS",
+      "STX",
+      "MAS",
+      "CL",
+      "SNDK",
+      "APP",
+      "MA",
+      "GDDY",
+      "LITE"
+    ]
   }
 }
