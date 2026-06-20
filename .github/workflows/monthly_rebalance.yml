@@ -1,0 +1,59 @@
+name: Monthly Paper Trading Rebalance
+
+on:
+  schedule:
+    # 9:00 AM ET (14:00 UTC) on the 1st of every month
+    # Markets open at 9:30 AM ET; this gives a 30-min buffer for signal prep
+    - cron: '0 14 1 * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (print signals only, no orders)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  rebalance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true  # Required to pull large CSV files stored in Git LFS
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install parent repo dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install paper trading dependencies
+        run: pip install -r paper_trading/requirements.txt
+
+      - name: Run monthly rebalance
+        working-directory: paper_trading
+        run: python run_monthly.py
+        env:
+          ALPACA_IMP4_KEY: ${{ secrets.ALPACA_IMP4_KEY }}
+          ALPACA_IMP4_SECRET: ${{ secrets.ALPACA_IMP4_SECRET }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+
+      - name: Commit updated portfolio state
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add paper_trading/data/portfolio_state.json paper_trading/logs/
+          git diff --staged --quiet || git commit -m "chore: monthly rebalance state $(date +%Y-%m-%d)"
+          git push
