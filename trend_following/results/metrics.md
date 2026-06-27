@@ -7,17 +7,17 @@ Lookback: 10-month SMA · Cost: 5.0 bps/side · Monthly rebalance · Look-ahead 
 
 | Metric | GTAA Trend | SPY Buy&Hold | 60/40 |
 |---|---|---|---|
-| CAGR | +5.52% | +10.89% | +8.12% |
-| Ann. Vol | 5.65% | 14.91% | 9.14% |
-| Sharpe | 0.98 | 0.77 | 0.90 |
-| Sortino | 1.52 | 1.06 | 1.18 |
-| Max Drawdown | -7.66% | -50.78% | -29.46% |
-| Calmar | 0.72 | 0.21 | 0.28 |
-| % Positive Months | 61.1% | 66.5% | 67.3% |
+| CAGR | +4.67% | +10.54% | +8.00% |
+| Ann. Vol | 5.63% | 15.61% | 9.56% |
+| Sharpe | 0.84 | 0.72 | 0.86 |
+| Sortino | 1.29 | 1.01 | 1.15 |
+| Max Drawdown | -7.70% | -50.78% | -29.46% |
+| Calmar | 0.61 | 0.21 | 0.27 |
+| % Positive Months | 62.9% | 65.5% | 65.9% |
 | Worst Month | -4.75% | -16.52% | -10.26% |
-| Avg Ann. Turnover | 330% | — | — |
+| Avg Ann. Turnover | 343% | — | — |
 
-_Period: 2005-02-28 → 2026-06-30 (257 months). Sharpe/Sortino at rf=0._
+_Period: 2007-06-30 → 2026-06-30 (229 months). Sharpe/Sortino at rf=0._
 
 ## ETF inception (binds the backtest start)
 

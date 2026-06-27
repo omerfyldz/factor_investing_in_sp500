@@ -37,6 +37,16 @@ def run_backtest(
     Returns a dict with monthly net returns, NAV, traded weights, turnover.
     """
     monthly = to_month_end(daily_close[ALL_ETFS])
+
+    # Start only once the FULL universe (incl. the BIL cash leg, inception
+    # 2007-05) has data. Otherwise the 2005-2007 window would route "off"
+    # sleeves into a non-existent BIL that silently earns 0% instead of the
+    # real T-bill yield, and run an incomplete universe. Trimming to the first
+    # all-present month makes the cash leg always real and the universe whole.
+    full = monthly.notna().all(axis=1)
+    if full.any():
+        monthly = monthly.loc[full.idxmax():]
+
     monthly_ret = monthly.pct_change()
 
     w = target_weights(signals(monthly, ma_months))   # decided at month-end t

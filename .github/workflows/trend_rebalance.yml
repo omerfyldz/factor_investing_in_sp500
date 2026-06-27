@@ -1,0 +1,64 @@
+name: Trend Following Monthly Rebalance
+
+# Monthly Faber GTAA rebalance of the trend-following ETF paper account.
+# Separate from the factor strategy's monthly_rebalance.yml (different Alpaca
+# account + secrets). Defaults to live on the cron; dry-run by default when
+# triggered manually.
+on:
+  schedule:
+    # 9:00 AM ET (14:00 UTC) on the 1st of each month — 30 min before the open.
+    - cron: '0 14 1 * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (compute + print weights, submit no orders)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  rebalance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r trend_following/requirements.txt
+
+      - name: Unit tests (core + look-ahead + signal parity)
+        working-directory: trend_following
+        run: |
+          python tests/test_core.py
+          python tests/test_lookahead.py
+          python tests/test_signal_parity.py
+
+      - name: Run monthly rebalance
+        working-directory: trend_following
+        run: python -m live.run_monthly
+        env:
+          ALPACA_TREND_KEY: ${{ secrets.ALPACA_TREND_KEY }}
+          ALPACA_TREND_SECRET: ${{ secrets.ALPACA_TREND_SECRET }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+
+      - name: Commit updated state
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add trend_following/data/portfolio_state.json trend_following/logs/
+          git diff --staged --quiet || git commit -m "chore: trend rebalance state $(date +%Y-%m-%d)"
+          git push
