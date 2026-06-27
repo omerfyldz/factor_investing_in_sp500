@@ -31,6 +31,16 @@ def fetch_monthly_closes(years_back: int = 20) -> pd.DataFrame:
         close = raw[["Close"]].rename(columns={"Close": ALL_ETFS[0]})
     close.index = pd.to_datetime(close.index)
     monthly = to_month_end(close.sort_index())
+
+    # Use only COMPLETED months. Mid-month, the latest resample bucket is
+    # labelled with the month-end date but holds a partial-month price, so
+    # acting on it would trade on an unfinished month. Dropping the current
+    # (unfinished) month makes every run — a manual dry/live run OR the
+    # 1st-of-month cron — use the last fully-closed month, matching Faber's
+    # "last trading day of the month" rule.
+    current_month_start = pd.Timestamp.today().normalize().replace(day=1)
+    monthly = monthly[monthly.index < current_month_start]
+
     missing = [t for t in ALL_ETFS if t not in monthly.columns]
     if missing:
         raise RuntimeError(f"yfinance did not return data for: {missing}")
