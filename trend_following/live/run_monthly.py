@@ -28,19 +28,25 @@ from live.fetcher import fetch_monthly_closes  # noqa: E402
 from live.signals import compute_target_weights  # noqa: E402
 from live.state import save_state  # noqa: E402
 
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(LOG_DIR / f"trend_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
-    ],
-)
 log = logging.getLogger(__name__)
 
 
+def _setup_logging() -> None:
+    """Configure logging + open the run log file. Called from main() (not at
+    import) so merely importing this module has no filesystem side effects."""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(message)s",
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler(LOG_DIR / f"trend_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
+        ],
+    )
+
+
 def main() -> None:
+    _setup_logging()
     mode = "DRY RUN" if DRY_RUN else "LIVE"
     log.info(f"=== Trend Rebalance [{mode}] — {datetime.now().isoformat()} ===")
 
