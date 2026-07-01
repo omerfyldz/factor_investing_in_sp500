@@ -1,0 +1,21 @@
+2026-07-01 16:25:38,319 === Monthly Rebalance [LIVE] — 2026-07-01T16:25:38.319844 ===
+2026-07-01 16:25:38,320 Loading S&P 500 universe...
+2026-07-01 16:25:38,323   Universe: 503 tickers
+2026-07-01 16:25:38,323 Fetching live price and fundamental data...
+2026-07-01 16:26:08,954 $BF.B: possibly delisted; no price data found  (period=5y)
+2026-07-01 16:26:09,246 $BRK.B: possibly delisted; no price data found  (period=5y) (Yahoo error = "No data found, symbol may be delisted")
+2026-07-01 16:26:18,930 
+3 Failed downloads:
+2026-07-01 16:26:18,931 ['CAG']: OperationalError('database is locked')
+2026-07-01 16:26:18,931 ['BF.B']: possibly delisted; no price data found  (period=5y)
+2026-07-01 16:26:18,931 ['BRK.B']: possibly delisted; no price data found  (period=5y) (Yahoo error = "No data found, symbol may be delisted")
+2026-07-01 16:28:46,244 Loading historical index data from processed files...
+2026-07-01 16:28:46,250 Building factor panel and computing signals...
+2026-07-01 16:28:46,275 
+--- Strategy: improved_4 ---
+2026-07-01 16:28:46,489   Connected to Alpaca. Current holdings: ['APP', 'CL', 'ECHO', 'GDDY', 'LITE', 'MAS', 'SNDK', 'STX', 'WDC']
+2026-07-01 16:28:50,096   Rebalance complete. Holdings: ['CL', 'CLX', 'INTC', 'LITE', 'LRCX', 'MAS', 'MU', 'SNDK', 'STX', 'WDC']
+2026-07-01 16:28:50,096 
+State saved to /home/runner/work/factor_investing_in_sp500/factor_investing_in_sp500/paper_trading/data/portfolio_state.json
+2026-07-01 16:28:50,096 Log: /home/runner/work/factor_investing_in_sp500/factor_investing_in_sp500/paper_trading/logs/rebalance_20260701_162538.log
+2026-07-01 16:28:50,096 === Done ===
