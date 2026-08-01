@@ -1,0 +1,21 @@
+2026-08-01 14:58:41,941 === Monthly Rebalance [LIVE] — 2026-08-01T14:58:41.941192 ===
+2026-08-01 14:58:41,941 Loading S&P 500 universe...
+2026-08-01 14:58:41,944   Universe: 503 tickers
+2026-08-01 14:58:41,944 Fetching live price and fundamental data...
+2026-08-01 14:58:41,946 Failed to create TzCache, reason: Error creating TzCache folder: '/home/runner/.cache/py-yfinance' reason: [Errno 17] File exists: '/home/runner/.cache/py-yfinance'. TzCache will not be used. Tip: You can direct cache to use a different location with 'set_tz_cache_location(mylocation)'
+2026-08-01 14:59:01,763 $BF.B: possibly delisted; no price data found  (period=5y)
+2026-08-01 14:59:05,085 $BRK.B: possibly delisted; no price data found  (period=5y) (Yahoo error = "No data found, symbol may be delisted")
+2026-08-01 14:59:24,538 
+2 Failed downloads:
+2026-08-01 14:59:24,538 ['BF.B']: possibly delisted; no price data found  (period=5y)
+2026-08-01 14:59:24,538 ['BRK.B']: possibly delisted; no price data found  (period=5y) (Yahoo error = "No data found, symbol may be delisted")
+2026-08-01 15:01:53,944 Loading historical index data from processed files...
+2026-08-01 15:01:53,949 Building factor panel and computing signals...
+2026-08-01 15:01:53,971 
+--- Strategy: improved_4 ---
+2026-08-01 15:01:54,221   Connected to Alpaca. Current holdings: ['CL', 'CLX', 'INTC', 'LITE', 'LRCX', 'MAS', 'MU', 'SNDK', 'STX', 'WDC']
+2026-08-01 15:01:57,480   Rebalance complete. Holdings: ['AAPL', 'APP', 'CL', 'CLX', 'GDDY', 'INTC', 'MAS', 'MU', 'SNDK', 'STX']
+2026-08-01 15:01:57,480 
+State saved to /home/runner/work/factor_investing_in_sp500/factor_investing_in_sp500/paper_trading/data/portfolio_state.json
+2026-08-01 15:01:57,480 Log: /home/runner/work/factor_investing_in_sp500/factor_investing_in_sp500/paper_trading/logs/rebalance_20260801_145841.log
+2026-08-01 15:01:57,481 === Done ===
