@@ -1,17 +1,17 @@
 {
-  "last_rebalance": "2026-08-01",
+  "last_rebalance": "2026-09-01",
   "improved_4": {
     "holdings": [
-      "CL",
-      "SNDK",
-      "GDDY",
       "MU",
-      "AAPL",
-      "MAS",
-      "INTC",
+      "WDC",
       "STX",
-      "CLX",
-      "APP"
+      "DELL",
+      "TER",
+      "LRCX",
+      "MAS",
+      "LITE",
+      "SNDK",
+      "TPR"
     ]
   }
 }
